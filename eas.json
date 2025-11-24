@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": "16.28.0",
+    "appVersionSource": "remote",
+    "requireCommit": true
+  },
+  "build": {
+    "local-simulator": {
+      "ios": {
+        "simulator": true
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
+
