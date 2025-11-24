@@ -5,10 +5,12 @@ import {
 	StyleSheet,
 	ActivityIndicator,
 	RefreshControl,
+	TouchableOpacity,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Part } from '../types';
 import { PartCard } from '../components/parts/PartCard';
 import { SearchBar } from '../components/ui/SearchBar';
@@ -80,10 +82,12 @@ export default function SearchScreen() {
 		setRefreshing(false);
 	}, [searchQuery, params.q, performSearch]);
 
-	const handlePartPress = useCallback((part: Part) => {
-		// Could navigate to a detail screen in the future
-		console.log('Part pressed:', part);
-	}, []);
+	const handlePartPress = useCallback(
+		(part: Part) => {
+			router.push(`/product/${part.id}`);
+		},
+		[router]
+	);
 
 	const renderEmptyState = () => {
 		if (loading) {
@@ -126,17 +130,51 @@ export default function SearchScreen() {
 	return (
 		<SafeAreaView style={styles.container} edges={['top']}>
 			<View style={styles.searchContainer}>
-				<SearchBar
-					value={searchQuery}
-					onChangeText={setSearchQuery}
-					onClear={() => {
-						setSearchQuery('');
-						setParts([]);
-					}}
-					placeholder="Search parts..."
-					onSubmitEditing={handleSearch}
-					returnKeyType="search"
-				/>
+				<View style={styles.searchBarWrapper}>
+					<SearchBar
+						value={searchQuery}
+						onChangeText={setSearchQuery}
+						onClear={() => {
+							setSearchQuery('');
+							setParts([]);
+						}}
+						placeholder="Search parts..."
+						onSubmitEditing={handleSearch}
+						onSuggestionSelect={async (suggestion) => {
+							setSearchQuery(suggestion);
+							// Immediately perform search with the selected suggestion
+							const trimmedQuery = suggestion.trim();
+							if (trimmedQuery) {
+								await saveSearchTerm(
+									trimmedQuery,
+									(params.mode as 'appliance' | 'part' | 'keyword') || 'keyword'
+								);
+								performSearch(trimmedQuery);
+							}
+						}}
+						returnKeyType="search"
+						style={styles.searchBar}
+					/>
+					<TouchableOpacity
+						style={[
+							styles.searchButton,
+							(!searchQuery.trim() || loading) && styles.searchButtonDisabled,
+						]}
+						onPress={handleSearch}
+						disabled={!searchQuery.trim() || loading}
+						activeOpacity={0.7}
+					>
+						{loading ? (
+							<ActivityIndicator size="small" color={theme.colors.background} />
+						) : (
+							<Ionicons
+								name="search"
+								size={20}
+								color={theme.colors.background}
+							/>
+						)}
+					</TouchableOpacity>
+				</View>
 			</View>
 
 			{parts.length > 0 && (
@@ -154,7 +192,6 @@ export default function SearchScreen() {
 					renderItem={({ item }) => (
 						<PartCard part={item} onPress={() => handlePartPress(item)} />
 					)}
-					estimatedItemSize={200}
 					contentContainerStyle={styles.list}
 					refreshControl={
 						<RefreshControl
@@ -181,6 +218,25 @@ const styles = StyleSheet.create({
 		backgroundColor: theme.colors.surfaceElevated,
 		borderBottomWidth: 1,
 		borderBottomColor: theme.colors.border,
+	},
+	searchBarWrapper: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: theme.spacing.sm,
+	},
+	searchBar: {
+		flex: 1,
+	},
+	searchButton: {
+		backgroundColor: theme.colors.primary,
+		borderRadius: theme.borderRadius.lg,
+		width: 48,
+		height: 48,
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	searchButtonDisabled: {
+		opacity: 0.5,
 	},
 	resultsHeader: {
 		paddingHorizontal: theme.spacing.md,

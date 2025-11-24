@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -12,6 +12,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 import { getSearchSuggestions } from '../../services/searchHistoryService';
+import { getPartSuggestions } from '../../services/partsService';
+
+interface SuggestionItem {
+  text: string;
+  type: 'history' | 'part';
+}
 
 interface SearchBarProps extends TextInputProps {
   onClear?: () => void;
@@ -31,8 +37,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   style,
   ...props
 }) => {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [showSuggestionsList, setShowSuggestionsList] = useState(false);
+  const isSelectingSuggestion = useRef(false);
 
   const loadSuggestions = useCallback(async (query: string) => {
     if (!showSuggestions || !query || query.trim().length === 0) {
@@ -42,9 +49,38 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
 
     try {
-      const results = await getSearchSuggestions(query, 5);
-      setSuggestions(results);
-      setShowSuggestionsList(results.length > 0);
+      // Get suggestions from both sources in parallel
+      const [historySuggestions, partSuggestions] = await Promise.all([
+        getSearchSuggestions(query, 5),
+        getPartSuggestions(query, 5),
+      ]);
+
+      // Combine suggestions, prioritizing history, then parts
+      // Remove duplicates while preserving order
+      const combined: SuggestionItem[] = [];
+      const seen = new Set<string>();
+
+      // Add history suggestions first (higher priority)
+      for (const suggestion of historySuggestions) {
+        const lower = suggestion.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          combined.push({ text: suggestion, type: 'history' });
+        }
+      }
+
+      // Add part suggestions (lower priority, but still important)
+      for (const suggestion of partSuggestions) {
+        const lower = suggestion.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          combined.push({ text: suggestion, type: 'part' });
+        }
+      }
+
+      // Limit to 8 total suggestions
+      setSuggestions(combined.slice(0, 8));
+      setShowSuggestionsList(combined.length > 0);
     } catch (error) {
       console.error('Error loading suggestions:', error);
       setSuggestions([]);
@@ -53,6 +89,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   }, [showSuggestions]);
 
   useEffect(() => {
+    // Skip loading suggestions if we just selected a suggestion
+    if (isSelectingSuggestion.current) {
+      isSelectingSuggestion.current = false;
+      return;
+    }
     if (value !== undefined) {
       loadSuggestions(value);
     }
@@ -62,11 +103,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     onChangeText?.(text);
   };
 
-  const handleSuggestionPress = (suggestion: string) => {
-    onChangeText?.(suggestion);
+  const handleSuggestionPress = (suggestion: SuggestionItem) => {
+    // Mark that we're selecting a suggestion to prevent re-loading suggestions
+    isSelectingSuggestion.current = true;
+    onChangeText?.(suggestion.text);
     setShowSuggestionsList(false);
     Keyboard.dismiss();
-    onSuggestionSelect?.(suggestion);
+    onSuggestionSelect?.(suggestion.text);
   };
 
   const handleClear = () => {
@@ -126,19 +169,19 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         <View style={styles.suggestionsContainer}>
           <FlatList
             data={suggestions}
-            keyExtractor={(item, index) => `${item}-${index}`}
+            keyExtractor={(item, index) => `${item.text}-${item.type}-${index}`}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.suggestionItem}
                 onPress={() => handleSuggestionPress(item)}
               >
                 <Ionicons
-                  name="time-outline"
+                  name={item.type === 'history' ? 'time-outline' : 'cube-outline'}
                   size={18}
                   color={theme.colors.textSecondary}
                   style={styles.suggestionIcon}
                 />
-                <Text style={styles.suggestionText}>{item}</Text>
+                <Text style={styles.suggestionText}>{item.text}</Text>
               </TouchableOpacity>
             )}
             scrollEnabled={false}

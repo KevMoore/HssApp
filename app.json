@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hssspares.app"
+      "bundleIdentifier": "com.hssspares.app",
+      "appleTeamId": "T6R6644E7Y"
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +34,19 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-maps",
+      "expo-local-authentication",
+      "expo-calendar",
+      "expo-location",
+      [
+        "expo-notifications",
+        {
+          "iosDisplayInForeground": true
+        }
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

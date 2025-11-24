@@ -2,6 +2,10 @@ import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { Platform, DynamicColorIOS } from 'react-native';
 import { theme } from '../../constants/theme';
 
+export const unstable_settings = {
+	initialRouteName: 'index',
+};
+
 export default function TabsLayout() {
 	// Use DynamicColorIOS for liquid glass to adapt to light/dark mode
 	const tabBarLabelColor =

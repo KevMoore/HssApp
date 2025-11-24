@@ -165,6 +165,18 @@ export default function HomeScreen() {
 									: 'Search by keyword...'
 							}
 							onSubmitEditing={handleSearch}
+							onSuggestionSelect={async (suggestion) => {
+								setSearchQuery(suggestion);
+								// Immediately perform search with the selected suggestion
+								const trimmedQuery = suggestion.trim();
+								if (trimmedQuery) {
+									await saveSearchTerm(trimmedQuery, searchMode);
+									router.push({
+										pathname: '/search',
+										params: { q: trimmedQuery, mode: searchMode },
+									});
+								}
+							}}
 							returnKeyType="search"
 						/>
 						<Button
