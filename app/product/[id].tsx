@@ -7,6 +7,7 @@ import {
 	Image,
 	ActivityIndicator,
 	TouchableOpacity,
+	Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ import { getPartById, searchParts } from '../../services/partsService';
 import { theme } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
 import { openPartPage } from '../../utils/linking';
+import { useBasketStore } from '../../stores/basketStore';
 
 export default function ProductDetailsScreen() {
 	const params = useLocalSearchParams<{ id: string }>();
@@ -25,6 +27,9 @@ export default function ProductDetailsScreen() {
 	const [loading, setLoading] = useState(true);
 	const [quantity, setQuantity] = useState(1);
 	const [compatibilityExpanded, setCompatibilityExpanded] = useState(true);
+	const [isAdding, setIsAdding] = useState(false);
+	const addItem = useBasketStore((state) => state.addItem);
+	const refreshCount = useBasketStore((state) => state.refreshCount);
 
 	useEffect(() => {
 		const loadPart = async () => {
@@ -60,10 +65,45 @@ export default function ProductDetailsScreen() {
 		loadPart();
 	}, [params.id]);
 
-	const handleAddToBasket = () => {
-		if (part) {
-			// Navigate to website to add to basket
-			openPartPage(part.partNumber, part.manufacturer);
+	const handleAddToBasket = async () => {
+		if (!part) return;
+
+		if (!part.inStock) {
+			Alert.alert('Out of Stock', 'This item is currently out of stock.');
+			return;
+		}
+
+		setIsAdding(true);
+		try {
+			await addItem(part, quantity);
+			await refreshCount();
+			Alert.alert(
+				'Added to Basket',
+				`${quantity} x ${part.partNumber} has been added to your basket.`,
+				[
+					{
+						text: 'Continue Shopping',
+						style: 'cancel',
+						onPress: () => {
+							// Just dismiss modals, stay on current screen
+							router.dismissAll();
+						},
+					},
+					{
+						text: 'Go To Basket',
+						onPress: () => {
+							// Navigate to basket tab
+							router.dismissAll();
+							router.replace('/(tabs)/basket');
+						},
+					},
+				]
+			);
+		} catch (error) {
+			console.error('Error adding to basket:', error);
+			Alert.alert('Error', 'Failed to add item to basket. Please try again.');
+		} finally {
+			setIsAdding(false);
 		}
 	};
 
@@ -110,16 +150,6 @@ export default function ProductDetailsScreen() {
 				contentContainerStyle={styles.scrollContent}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Header with back button */}
-				<View style={styles.header}>
-					<TouchableOpacity
-						onPress={() => router.back()}
-						style={styles.backButton}
-					>
-						<Ionicons name="arrow-back" size={24} color={theme.colors.text} />
-					</TouchableOpacity>
-				</View>
-
 				{/* Product Image */}
 				{part.imageUrl && (
 					<View style={styles.imageContainer}>
@@ -251,12 +281,13 @@ export default function ProductDetailsScreen() {
 
 					{/* Add to Basket Button */}
 					<Button
-						title="Add to basket"
+						title={isAdding ? 'Adding...' : 'Add to Basket'}
 						onPress={handleAddToBasket}
 						variant="primary"
 						size="large"
 						style={styles.addToBasketButton}
-						disabled={!part.inStock}
+						disabled={!part.inStock || isAdding}
+						loading={isAdding}
 					/>
 
 					{/* Shipping Info */}
@@ -345,14 +376,6 @@ const styles = StyleSheet.create({
 	},
 	scrollContent: {
 		paddingBottom: theme.spacing.xl,
-	},
-	header: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		padding: theme.spacing.md,
-	},
-	backButton: {
-		padding: theme.spacing.xs,
 	},
 	imageContainer: {
 		width: '100%',

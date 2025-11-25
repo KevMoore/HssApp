@@ -40,6 +40,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [showSuggestionsList, setShowSuggestionsList] = useState(false);
   const isSelectingSuggestion = useRef(false);
+  const isInitialMount = useRef(true);
+  const hasUserInteracted = useRef(false);
 
   const loadSuggestions = useCallback(async (query: string) => {
     if (!showSuggestions || !query || query.trim().length === 0) {
@@ -89,30 +91,54 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   }, [showSuggestions]);
 
   useEffect(() => {
+    // On initial mount, don't load suggestions if value is already set
+    // (this means we're coming from navigation/search action)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (value && value.trim().length > 0) {
+        // Don't show suggestions on initial mount with a value
+        setSuggestions([]);
+        setShowSuggestionsList(false);
+        return;
+      }
+    }
+
     // Skip loading suggestions if we just selected a suggestion
     if (isSelectingSuggestion.current) {
       isSelectingSuggestion.current = false;
+      // Ensure suggestions stay hidden after selection
+      setShowSuggestionsList(false);
+      setSuggestions([]);
       return;
     }
-    if (value !== undefined) {
+
+    // Only load suggestions if user has interacted (typed something)
+    // or if the value is empty (to allow clearing and showing suggestions)
+    if (value !== undefined && (hasUserInteracted.current || !value || value.trim().length === 0)) {
       loadSuggestions(value);
     }
   }, [value, loadSuggestions]);
 
   const handleTextChange = (text: string) => {
+    hasUserInteracted.current = true;
     onChangeText?.(text);
   };
 
   const handleSuggestionPress = (suggestion: SuggestionItem) => {
     // Mark that we're selecting a suggestion to prevent re-loading suggestions
     isSelectingSuggestion.current = true;
-    onChangeText?.(suggestion.text);
+    // Reset user interaction flag since this is programmatic, not user typing
+    hasUserInteracted.current = false;
+    // Clear suggestions immediately to prevent them from reappearing
+    setSuggestions([]);
     setShowSuggestionsList(false);
+    onChangeText?.(suggestion.text);
     Keyboard.dismiss();
     onSuggestionSelect?.(suggestion.text);
   };
 
   const handleClear = () => {
+    hasUserInteracted.current = false;
     onChangeText?.('');
     setSuggestions([]);
     setShowSuggestionsList(false);
@@ -141,7 +167,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onChangeText={handleTextChange}
           onBlur={handleBlur}
           onFocus={() => {
-            if (suggestions.length > 0) {
+            // Don't show suggestions if we just selected one
+            if (!isSelectingSuggestion.current && suggestions.length > 0) {
               setShowSuggestionsList(true);
             }
           }}

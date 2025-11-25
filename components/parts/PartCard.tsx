@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Part } from '../../types';
 import { theme } from '../../constants/theme';
 import { Button } from '../ui/Button';
-import { openPartPage } from '../../utils/linking';
+import { useBasketStore } from '../../stores/basketStore';
 
 interface PartCardProps {
 	part: Part;
@@ -12,8 +13,55 @@ interface PartCardProps {
 }
 
 export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
-	const handleBuyPress = () => {
-		openPartPage(part.partNumber, part.manufacturer);
+	const router = useRouter();
+	const [isAdding, setIsAdding] = useState(false);
+	const addItem = useBasketStore((state) => state.addItem);
+	const refreshCount = useBasketStore((state) => state.refreshCount);
+
+	const handleViewDetails = (e: any) => {
+		e?.stopPropagation?.();
+		router.push(`/product/${part.id}`);
+	};
+
+	const handleAddToBasket = async (e: any) => {
+		e?.stopPropagation?.();
+		if (!part.inStock) {
+			Alert.alert('Out of Stock', 'This item is currently out of stock.');
+			return;
+		}
+
+		setIsAdding(true);
+		try {
+			await addItem(part, 1);
+			await refreshCount();
+			Alert.alert(
+				'Added to Basket',
+				`${part.partNumber} has been added to your basket.`,
+				[
+					{
+						text: 'Continue Shopping',
+						style: 'cancel',
+						onPress: () => {
+							// Just dismiss modals, stay on current screen
+							router.dismissAll();
+						},
+					},
+					{
+						text: 'Go To Basket',
+						onPress: () => {
+							// Navigate to basket tab
+							router.dismissAll();
+							router.replace('/(tabs)/basket');
+						},
+					},
+				]
+			);
+		} catch (error) {
+			console.error('Error adding to basket:', error);
+			Alert.alert('Error', 'Failed to add item to basket. Please try again.');
+		} finally {
+			setIsAdding(false);
+		}
 	};
 
 	return (
@@ -73,13 +121,37 @@ export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 				)}
 			</View>
 
-			<Button
-				title="View Details"
-				onPress={handleBuyPress}
-				variant="primary"
-				size="medium"
-				style={styles.buyButton}
-			/>
+			<View style={styles.buttonRow}>
+				<Button
+					title="View Details"
+					onPress={handleViewDetails}
+					variant="outline"
+					size="medium"
+					style={styles.viewButton}
+				/>
+				{part.inStock && (
+					<TouchableOpacity
+						style={styles.addButton}
+						onPress={handleAddToBasket}
+						disabled={isAdding}
+						activeOpacity={0.7}
+					>
+						{isAdding ? (
+							<Ionicons
+								name="hourglass-outline"
+								size={20}
+								color={theme.colors.background}
+							/>
+						) : (
+							<Ionicons
+								name="basket-outline"
+								size={20}
+								color={theme.colors.background}
+							/>
+						)}
+					</TouchableOpacity>
+				)}
+			</View>
 		</TouchableOpacity>
 	);
 };
@@ -180,7 +252,20 @@ const styles = StyleSheet.create({
 		...theme.typography.h3,
 		color: theme.colors.primary,
 	},
-	buyButton: {
-		width: '100%',
+	buttonRow: {
+		flexDirection: 'row',
+		gap: theme.spacing.sm,
+		alignItems: 'center',
+	},
+	viewButton: {
+		flex: 1,
+	},
+	addButton: {
+		backgroundColor: theme.colors.primary,
+		borderRadius: theme.borderRadius.md,
+		width: 48,
+		height: 48,
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 });
