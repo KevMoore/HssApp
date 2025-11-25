@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import {
   View,
   TextInput,
@@ -19,6 +19,11 @@ interface SuggestionItem {
   type: 'history' | 'part';
 }
 
+export interface SearchBarRef {
+  setSelection: (start: number, end: number) => void;
+  focus: () => void;
+}
+
 interface SearchBarProps extends TextInputProps {
   onClear?: () => void;
   showClearButton?: boolean;
@@ -26,7 +31,7 @@ interface SearchBarProps extends TextInputProps {
   onSuggestionSelect?: (suggestion: string) => void;
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({
+export const SearchBar = forwardRef<SearchBarRef, SearchBarProps>(({
   value,
   onChangeText,
   onClear,
@@ -36,12 +41,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   placeholder = 'Search...',
   style,
   ...props
-}) => {
+}, ref) => {
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [showSuggestionsList, setShowSuggestionsList] = useState(false);
+  const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+  const inputRef = useRef<TextInput>(null);
   const isSelectingSuggestion = useRef(false);
   const isInitialMount = useRef(true);
   const hasUserInteracted = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    setSelection: (start: number, end: number) => {
+      setSelection({ start, end });
+    },
+    focus: () => {
+      inputRef.current?.focus();
+    },
+  }));
 
   const loadSuggestions = useCallback(async (query: string) => {
     if (!showSuggestions || !query || query.trim().length === 0) {
@@ -162,6 +178,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           style={styles.searchIcon}
         />
         <TextInput
+          ref={inputRef}
           style={styles.input}
           value={value}
           onChangeText={handleTextChange}
@@ -170,6 +187,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             // Don't show suggestions if we just selected one
             if (!isSelectingSuggestion.current && suggestions.length > 0) {
               setShowSuggestionsList(true);
+            }
+          }}
+          selection={selection}
+          onSelectionChange={(e) => {
+            // Only update selection if it wasn't programmatically set
+            if (selection) {
+              setSelection(undefined);
             }
           }}
           placeholder={placeholder}
@@ -218,7 +242,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       )}
     </View>
   );
-};
+});
+
+SearchBar.displayName = 'SearchBar';
 
 const styles = StyleSheet.create({
   wrapper: {

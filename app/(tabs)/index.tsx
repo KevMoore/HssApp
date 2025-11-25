@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { SearchBar } from '../../components/ui/SearchBar';
+import { SearchBar, SearchBarRef } from '../../components/ui/SearchBar';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
 import { ApplianceModal } from '../../components/appliances/ApplianceModal';
@@ -28,10 +28,16 @@ export default function HomeScreen() {
 		'appliance' | 'part' | 'keyword'
 	>('keyword');
 	const [isApplianceModalVisible, setIsApplianceModalVisible] = useState(false);
+	const searchBarRef = useRef<SearchBarRef>(null);
+	const PART_PREFIX = 'GC-';
 
 	const handleSearch = useCallback(async () => {
 		if (searchQuery.trim()) {
-			const trimmedQuery = searchQuery.trim();
+			let trimmedQuery = searchQuery.trim();
+			// Remove GC- prefix before searching if in part mode
+			if (searchMode === 'part' && trimmedQuery.startsWith(PART_PREFIX)) {
+				trimmedQuery = trimmedQuery.substring(PART_PREFIX.length);
+			}
 			// Save to search history
 			await saveSearchTerm(trimmedQuery, searchMode);
 
@@ -43,12 +49,58 @@ export default function HomeScreen() {
 	}, [searchQuery, searchMode, router]);
 
 	const handleModeChange = (mode: 'appliance' | 'part' | 'keyword') => {
+		const previousMode = searchMode;
 		setSearchMode(mode);
-		setSearchQuery(''); // Clear search text when switching modes
+
+		if (mode === 'part') {
+			// Set prefix and position cursor after hyphen
+			setSearchQuery(PART_PREFIX);
+			// Use setTimeout to ensure the TextInput is ready
+			setTimeout(() => {
+				searchBarRef.current?.setSelection(
+					PART_PREFIX.length,
+					PART_PREFIX.length
+				);
+				searchBarRef.current?.focus();
+			}, 100);
+		} else {
+			// Remove GC- prefix if switching away from part mode
+			let newQuery = searchQuery;
+			if (previousMode === 'part' && newQuery.startsWith(PART_PREFIX)) {
+				newQuery = newQuery.substring(PART_PREFIX.length);
+			}
+			setSearchQuery(newQuery);
+		}
+
 		if (mode === 'appliance') {
 			// Open modal for appliance selection
 			setIsApplianceModalVisible(true);
 		}
+	};
+
+	const handleSearchQueryChange = (text: string) => {
+		if (searchMode === 'part') {
+			// Remove any duplicate GC- prefixes that might have been added
+			while (text.startsWith(PART_PREFIX + PART_PREFIX)) {
+				text = text.substring(PART_PREFIX.length);
+			}
+
+			// Ensure GC- prefix is always present
+			if (!text.startsWith(PART_PREFIX)) {
+				// If user tries to delete the prefix, restore it
+				if (text.length < PART_PREFIX.length) {
+					text = PART_PREFIX;
+				} else {
+					// If prefix was somehow removed, add it back
+					text = PART_PREFIX + text;
+				}
+			}
+			// Prevent deletion of the prefix
+			if (text.length < PART_PREFIX.length) {
+				text = PART_PREFIX;
+			}
+		}
+		setSearchQuery(text);
 	};
 
 	const handleApplianceSelect = useCallback(
@@ -85,9 +137,6 @@ export default function HomeScreen() {
 					<View style={styles.heroSection}>
 						<Logo variant="full" height={50} style={styles.heroLogo} />
 						<Text style={styles.heroTitle}>Find Boiler & Heating Parts</Text>
-						<Text style={styles.heroSubtitle}>
-							Next day delivery on 1000's of heating spares...
-						</Text>
 					</View>
 
 					{/* Search Mode Selector */}
@@ -177,9 +226,22 @@ export default function HomeScreen() {
 					{/* Search Bar */}
 					<View style={styles.searchSection}>
 						<SearchBar
+							ref={searchBarRef}
 							value={searchQuery}
-							onChangeText={setSearchQuery}
-							onClear={() => setSearchQuery('')}
+							onChangeText={handleSearchQueryChange}
+							onClear={() => {
+								if (searchMode === 'part') {
+									setSearchQuery(PART_PREFIX);
+									setTimeout(() => {
+										searchBarRef.current?.setSelection(
+											PART_PREFIX.length,
+											PART_PREFIX.length
+										);
+									}, 100);
+								} else {
+									setSearchQuery('');
+								}
+							}}
 							placeholder={
 								searchMode === 'appliance'
 									? 'Search by appliance...'
@@ -189,9 +251,25 @@ export default function HomeScreen() {
 							}
 							onSubmitEditing={handleSearch}
 							onSuggestionSelect={async (suggestion) => {
-								setSearchQuery(suggestion);
+								let finalSuggestion = suggestion;
+								if (searchMode === 'part') {
+									// Ensure suggestion has GC- prefix
+									if (!finalSuggestion.startsWith(PART_PREFIX)) {
+										finalSuggestion = PART_PREFIX + finalSuggestion;
+									}
+									setSearchQuery(finalSuggestion);
+								} else {
+									setSearchQuery(finalSuggestion);
+								}
 								// Immediately perform search with the selected suggestion
-								const trimmedQuery = suggestion.trim();
+								let trimmedQuery = finalSuggestion.trim();
+								// Remove GC- prefix before searching if in part mode
+								if (
+									searchMode === 'part' &&
+									trimmedQuery.startsWith(PART_PREFIX)
+								) {
+									trimmedQuery = trimmedQuery.substring(PART_PREFIX.length);
+								}
 								if (trimmedQuery) {
 									await saveSearchTerm(trimmedQuery, searchMode);
 									router.push({

@@ -36,25 +36,11 @@ const mockAppliances: Appliance[] = [
 			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
 	},
 	{
-		id: 'biasi',
-		name: 'BIASI',
-		value: 'biasi',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
-	},
-	{
 		id: 'chaffoteaux',
 		name: 'CHAFFOTEAUX',
 		value: 'chaffoteaux',
 		imageUrl:
 			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'drayton',
-		name: 'DRAYTON',
-		value: 'drayton',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
 	},
 	{
 		id: 'eogb',
@@ -69,13 +55,6 @@ const mockAppliances: Appliance[] = [
 		value: 'ferroli',
 		imageUrl:
 			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'firebird',
-		name: 'FIREBIRD',
-		value: 'firebird',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
 	},
 	{
 		id: 'gledhill',
@@ -99,13 +78,6 @@ const mockAppliances: Appliance[] = [
 			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
 	},
 	{
-		id: 'hamworthy',
-		name: 'HAMWORTHY',
-		value: 'hamworthy',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
-	},
-	{
 		id: 'ideal',
 		name: 'IDEAL',
 		value: 'ideal',
@@ -125,13 +97,6 @@ const mockAppliances: Appliance[] = [
 		value: 'intergas',
 		imageUrl:
 			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'johnson-starley',
-		name: 'JOHNSON & STARLEY',
-		value: 'johnson-starley',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
 	},
 	{
 		id: 'main',
@@ -155,13 +120,6 @@ const mockAppliances: Appliance[] = [
 			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
 	},
 	{
-		id: 'potterton',
-		name: 'POTTERTON',
-		value: 'potterton',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
-	},
-	{
 		id: 'powermax',
 		name: 'POWERMAX',
 		value: 'powermax',
@@ -181,13 +139,6 @@ const mockAppliances: Appliance[] = [
 		value: 'regin',
 		imageUrl:
 			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'saunier-duval',
-		name: 'SAUNIER DUVAL',
-		value: 'saunier-duval',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
 	},
 	{
 		id: 'thorn',
@@ -216,13 +167,6 @@ const mockAppliances: Appliance[] = [
 		value: 'viessmann',
 		imageUrl:
 			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'vokera',
-		name: 'VOKERA',
-		value: 'vokera',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop&q=80',
 	},
 	{
 		id: 'worcester',

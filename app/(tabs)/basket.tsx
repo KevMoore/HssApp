@@ -8,6 +8,7 @@ import {
 	TouchableOpacity,
 	ActivityIndicator,
 	Alert,
+	Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,11 @@ import { useFocusEffect } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { useBasketStore } from '../../stores/basketStore';
 import { Button } from '../../components/ui/Button';
+import {
+	getNextDayDeliveryCharge,
+	getVatRate,
+	calculateVat,
+} from '../../utils/env';
 
 export default function BasketScreen() {
 	const {
@@ -71,8 +77,7 @@ export default function BasketScreen() {
 	};
 
 	const handleCheckout = () => {
-		// For now, just show a message - do nothing
-		console.log('Checkout pressed - functionality coming soon');
+		Linking.openURL('https://hssspares.co.uk/checkout/');
 	};
 
 	const renderBasketItem = ({ item }: { item: (typeof items)[0] }) => {
@@ -185,6 +190,13 @@ export default function BasketScreen() {
 		);
 	}
 
+	// Calculate delivery and VAT
+	const deliveryCharge = getNextDayDeliveryCharge();
+	const vatRate = getVatRate();
+	const subtotalWithDelivery = total + deliveryCharge;
+	const vatAmount = calculateVat(subtotalWithDelivery);
+	const grandTotal = subtotalWithDelivery + vatAmount;
+
 	return (
 		<SafeAreaView style={styles.container} edges={['top']}>
 			<ScrollView
@@ -211,6 +223,22 @@ export default function BasketScreen() {
 								{total > 0 ? `£${total.toFixed(2)}` : '—'}
 							</Text>
 						</View>
+						{total > 0 && (
+							<>
+								<View style={styles.summaryRow}>
+									<Text style={styles.summaryLabel}>Next Day Delivery</Text>
+									<Text style={styles.summaryValue}>
+										£{deliveryCharge.toFixed(2)}
+									</Text>
+								</View>
+								<View style={styles.summaryRow}>
+									<Text style={styles.summaryLabel}>VAT ({vatRate}%)</Text>
+									<Text style={styles.summaryValue}>
+										£{vatAmount.toFixed(2)}
+									</Text>
+								</View>
+							</>
+						)}
 						<View style={styles.summaryRow}>
 							<Text style={styles.summaryLabel}>Items</Text>
 							<Text style={styles.summaryValue}>{itemCount}</Text>
@@ -218,7 +246,7 @@ export default function BasketScreen() {
 						<View style={styles.totalRow}>
 							<Text style={styles.totalLabel}>Total</Text>
 							<Text style={styles.totalValue}>
-								{total > 0 ? `£${total.toFixed(2)}` : '—'}
+								{total > 0 ? `£${grandTotal.toFixed(2)}` : '—'}
 							</Text>
 						</View>
 					</View>
@@ -232,7 +260,7 @@ export default function BasketScreen() {
 					/>
 
 					<Text style={styles.checkoutNote}>
-						All prices exclude VAT. VAT will be calculated at checkout.
+						Prices include VAT and next day delivery charge.
 					</Text>
 				</View>
 			</ScrollView>

@@ -55,7 +55,9 @@
       "router": {},
       "eas": {
         "projectId": "f1a4aec7-e3ba-437c-a7ca-f19e7ce72751"
-      }
+      },
+      "nextDayDeliveryCharge": 8.50,
+      "vatRate": 20
     },
     "owner": "kevmoore1975"
   }
