@@ -1,11 +1,10 @@
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import {
-	Platform,
-	DynamicColorIOS,
-	View,
-	Text,
-	StyleSheet,
-} from 'react-native';
+	NativeTabs,
+	Icon,
+	Label,
+	Badge,
+} from 'expo-router/unstable-native-tabs';
+import { Platform, DynamicColorIOS } from 'react-native';
 import { theme } from '../../constants/theme';
 import { useBasketStore } from '../../stores/basketStore';
 import { useEffect } from 'react';
@@ -14,7 +13,7 @@ export const unstable_settings = {
 	initialRouteName: 'index',
 };
 
-function BasketBadge() {
+export default function TabsLayout() {
 	const itemCount = useBasketStore((state) => state.itemCount);
 	const loadBasket = useBasketStore((state) => state.loadBasket);
 
@@ -22,16 +21,6 @@ function BasketBadge() {
 		loadBasket();
 	}, [loadBasket]);
 
-	if (itemCount === 0) return null;
-
-	return (
-		<View style={styles.badge}>
-			<Text style={styles.badgeText}>{itemCount > 99 ? '99+' : itemCount}</Text>
-		</View>
-	);
-}
-
-export default function TabsLayout() {
 	// Use DynamicColorIOS for liquid glass to adapt to light/dark mode
 	const tabBarLabelColor =
 		Platform.OS === 'ios'
@@ -48,6 +37,8 @@ export default function TabsLayout() {
 				default: '#ffffff80', // 50% opacity white for unselected
 				selected: theme.colors.primaryDark, // Dark blue from branding for selected
 			}}
+			badgeBackgroundColor={theme.colors.error}
+			badgeTextColor="#ffffff"
 			blurEffect="systemChromeMaterialDark"
 			labelStyle={{
 				default: {
@@ -69,9 +60,11 @@ export default function TabsLayout() {
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="basket">
-				<Icon sf="cart" drawable="ic_basket" />
 				<Label>Basket</Label>
-				<BasketBadge />
+				<Icon sf="cart" drawable="ic_basket" />
+				{itemCount > 0 && (
+					<Badge>{itemCount > 99 ? '99+' : itemCount.toString()}</Badge>
+				)}
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="stores">
@@ -91,33 +84,3 @@ export default function TabsLayout() {
 		</NativeTabs>
 	);
 }
-
-const styles = StyleSheet.create({
-	basketIconContainer: {
-		position: 'relative',
-		width: 24,
-		height: 24,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	badge: {
-		position: 'absolute',
-		top: -6,
-		right: -8,
-		backgroundColor: theme.colors.error,
-		borderRadius: 10,
-		minWidth: 20,
-		height: 20,
-		justifyContent: 'center',
-		alignItems: 'center',
-		paddingHorizontal: 4,
-		borderWidth: 2,
-		borderColor: theme.colors.primary,
-	},
-	badgeText: {
-		color: '#ffffff',
-		fontSize: 10,
-		fontWeight: '700',
-		textAlign: 'center',
-	},
-});

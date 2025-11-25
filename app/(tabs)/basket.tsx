@@ -224,7 +224,7 @@ export default function BasketScreen() {
 					</View>
 
 					<Button
-						title="Purchase"
+						title="Checkout"
 						onPress={handleCheckout}
 						variant="primary"
 						size="large"

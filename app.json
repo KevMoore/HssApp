@@ -4,12 +4,12 @@
     "slug": "hss-spares",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/hss-logo.png",
+    "icon": "./assets/hss-logo-icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "scheme": "hss",
     "splash": {
-      "image": "./assets/hss-logo.png",
+      "image": "./assets/hss-logo-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1e3a8a"
     },
@@ -20,7 +20,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/hss-logo.png",
+        "foregroundImage": "./assets/hss-logo-icon.png",
         "backgroundColor": "#1e3a8a"
       },
       "package": "com.hssspares.app",
