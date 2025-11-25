@@ -14,10 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
+import { ApplianceModal } from '../../components/appliances/ApplianceModal';
 import { theme } from '../../constants/theme';
 import { getPopularManufacturers } from '../../services/partsService';
 import { openHSSWebsite, openTradeAccountSignup } from '../../utils/linking';
 import { saveSearchTerm } from '../../services/searchHistoryService';
+import { Appliance } from '../../services/applianceService';
 
 export default function HomeScreen() {
 	const router = useRouter();
@@ -25,6 +27,7 @@ export default function HomeScreen() {
 	const [searchMode, setSearchMode] = useState<
 		'appliance' | 'part' | 'keyword'
 	>('keyword');
+	const [isApplianceModalVisible, setIsApplianceModalVisible] = useState(false);
 
 	const handleSearch = useCallback(async () => {
 		if (searchQuery.trim()) {
@@ -41,7 +44,27 @@ export default function HomeScreen() {
 
 	const handleModeChange = (mode: 'appliance' | 'part' | 'keyword') => {
 		setSearchMode(mode);
+		setSearchQuery(''); // Clear search text when switching modes
+		if (mode === 'appliance') {
+			// Open modal for appliance selection
+			setIsApplianceModalVisible(true);
+		}
 	};
+
+	const handleApplianceSelect = useCallback(
+		async (appliance: Appliance) => {
+			setSearchMode('appliance');
+			setSearchQuery(appliance.name);
+			// Save to search history
+			await saveSearchTerm(appliance.name, 'appliance');
+			// Navigate to search with appliance
+			router.push({
+				pathname: '/search',
+				params: { q: appliance.name, mode: 'appliance' },
+			});
+		},
+		[router]
+	);
 
 	const popularManufacturers = getPopularManufacturers();
 
@@ -264,6 +287,13 @@ export default function HomeScreen() {
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>
+
+			{/* Appliance Selection Modal */}
+			<ApplianceModal
+				visible={isApplianceModalVisible}
+				onClose={() => setIsApplianceModalVisible(false)}
+				onSelect={handleApplianceSelect}
+			/>
 		</SafeAreaView>
 	);
 }
