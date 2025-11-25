@@ -78,6 +78,7 @@ export default function RootLayout() {
 				<Stack.Screen
 					name="faqs"
 					options={{
+						presentation: 'fullScreenModal',
 						headerShown: true,
 						headerStyle: {
 							backgroundColor: theme.colors.primary,
@@ -92,6 +93,7 @@ export default function RootLayout() {
 				<Stack.Screen
 					name="contact-us"
 					options={{
+						presentation: 'fullScreenModal',
 						headerShown: true,
 						headerStyle: {
 							backgroundColor: theme.colors.primary,

@@ -68,17 +68,15 @@ export default function TabsLayout() {
 				<Label>Search</Label>
 			</NativeTabs.Trigger>
 
+			<NativeTabs.Trigger name="basket">
+				<Icon sf="cart" drawable="ic_basket" />
+				<Label>Basket</Label>
+				<BasketBadge />
+			</NativeTabs.Trigger>
+
 			<NativeTabs.Trigger name="stores">
 				<Icon sf="map" drawable="ic_map" />
 				<Label>Stores</Label>
-			</NativeTabs.Trigger>
-
-			<NativeTabs.Trigger name="basket">
-				<View style={styles.basketIconContainer}>
-					<Icon sf="basket" drawable="ic_basket" />
-					<BasketBadge />
-				</View>
-				<Label>Basket</Label>
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="account">
