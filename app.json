@@ -18,7 +18,11 @@
       "bundleIdentifier": "com.hssspares.app",
       "appleTeamId": "T6R6644E7Y",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,7 +35,13 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.SCHEDULE_EXACT_ALARM"
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -64,7 +74,7 @@
       "eas": {
         "projectId": "f1a4aec7-e3ba-437c-a7ca-f19e7ce72751"
       },
-      "nextDayDeliveryCharge": 8.50,
+      "nextDayDeliveryCharge": 8.5,
       "vatRate": 20
     },
     "owner": "kevmoore1975"
