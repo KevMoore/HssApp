@@ -14,6 +14,7 @@ export async function openHSSWebsite(path?: string): Promise<void> {
 	const supported = await Linking.canOpenURL(url);
 
 	if (supported) {
+		console.log(`Opening URL: ${url}`);
 		await Linking.openURL(url);
 	} else {
 		console.error(`Don't know how to open URI: ${url}`);
@@ -40,5 +41,5 @@ export async function openPartPage(
  * Open the trade account signup page
  */
 export async function openTradeAccountSignup(): Promise<void> {
-	await openHSSWebsite('/trade-account');
+	await openHSSWebsite('/open-trade-account/');
 }
