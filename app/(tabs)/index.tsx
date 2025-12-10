@@ -28,6 +28,8 @@ export default function HomeScreen() {
 		'appliance' | 'part' | 'keyword'
 	>('keyword');
 	const [isApplianceModalVisible, setIsApplianceModalVisible] = useState(false);
+	const [popularManufacturers, setPopularManufacturers] = useState<string[]>([]);
+	const [loadingManufacturers, setLoadingManufacturers] = useState(true);
 	const searchBarRef = useRef<SearchBarRef>(null);
 	const PART_PREFIX = 'GC-';
 
@@ -118,7 +120,24 @@ export default function HomeScreen() {
 		[router]
 	);
 
-	const popularManufacturers = getPopularManufacturers();
+	// Load manufacturers on mount
+	useEffect(() => {
+		const loadManufacturers = async () => {
+			try {
+				setLoadingManufacturers(true);
+				const manufacturers = await getPopularManufacturers();
+				setPopularManufacturers(manufacturers);
+			} catch (error) {
+				console.error('Error loading manufacturers:', error);
+				// Set empty array on error - UI will handle gracefully
+				setPopularManufacturers([]);
+			} finally {
+				setLoadingManufacturers(false);
+			}
+		};
+
+		loadManufacturers();
+	}, []);
 
 	return (
 		<SafeAreaView style={styles.container} edges={['top']}>
@@ -320,23 +339,25 @@ export default function HomeScreen() {
 					</View>
 
 					{/* Popular Manufacturers */}
-					<View style={styles.manufacturersSection}>
-						<Text style={styles.sectionTitle}>Popular Brands</Text>
-						<View style={styles.manufacturersGrid}>
-							{popularManufacturers.slice(0, 6).map((manufacturer) => (
-								<TouchableOpacity
-									key={manufacturer}
-									style={styles.manufacturerChip}
-									onPress={() => {
-										setSearchQuery(manufacturer);
-										setSearchMode('keyword');
-									}}
-								>
-									<Text style={styles.manufacturerText}>{manufacturer}</Text>
-								</TouchableOpacity>
-							))}
+					{!loadingManufacturers && popularManufacturers.length > 0 && (
+						<View style={styles.manufacturersSection}>
+							<Text style={styles.sectionTitle}>Popular Brands</Text>
+							<View style={styles.manufacturersGrid}>
+								{popularManufacturers.slice(0, 6).map((manufacturer) => (
+									<TouchableOpacity
+										key={manufacturer}
+										style={styles.manufacturerChip}
+										onPress={() => {
+											setSearchQuery(manufacturer);
+											setSearchMode('keyword');
+										}}
+									>
+										<Text style={styles.manufacturerText}>{manufacturer}</Text>
+									</TouchableOpacity>
+								))}
+							</View>
 						</View>
-					</View>
+					)}
 
 					{/* Info Section */}
 					<View style={styles.infoSection}>

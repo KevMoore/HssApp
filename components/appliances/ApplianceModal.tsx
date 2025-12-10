@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -6,6 +6,7 @@ import {
 	Modal,
 	TouchableOpacity,
 	Dimensions,
+	ActivityIndicator,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,7 +34,26 @@ export const ApplianceModal: React.FC<ApplianceModalProps> = ({
 	onClose,
 	onSelect,
 }) => {
-	const appliances = getAllAppliances();
+	const [appliances, setAppliances] = useState<Appliance[]>([]);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		if (visible) {
+			loadAppliances();
+		}
+	}, [visible]);
+
+	const loadAppliances = async () => {
+		setLoading(true);
+		try {
+			const data = await getAllAppliances();
+			setAppliances(data);
+		} catch (error) {
+			console.error('Error loading appliances:', error);
+		} finally {
+			setLoading(false);
+		}
+	};
 
 	const handleSelect = useCallback(
 		(appliance: Appliance) => {
@@ -71,14 +91,21 @@ export const ApplianceModal: React.FC<ApplianceModalProps> = ({
 				</View>
 
 				{/* Appliance List */}
-				<FlashList
-					data={appliances}
-					renderItem={renderItem}
-					numColumns={NUM_COLUMNS}
-					contentContainerStyle={styles.listContent}
-					ItemSeparatorComponent={() => <View style={styles.separator} />}
-					showsVerticalScrollIndicator={true}
-				/>
+				{loading ? (
+					<View style={styles.loadingContainer}>
+						<ActivityIndicator size="large" color={theme.colors.primary} />
+						<Text style={styles.loadingText}>Loading appliances...</Text>
+					</View>
+				) : (
+					<FlashList
+						data={appliances}
+						renderItem={renderItem}
+						numColumns={NUM_COLUMNS}
+						contentContainerStyle={styles.listContent}
+						ItemSeparatorComponent={() => <View style={styles.separator} />}
+						showsVerticalScrollIndicator={true}
+					/>
+				)}
 			</SafeAreaView>
 		</Modal>
 	);
@@ -115,5 +142,16 @@ const styles = StyleSheet.create({
 	},
 	separator: {
 		height: CARD_SPACING,
+	},
+	loadingContainer: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		padding: theme.spacing.xl,
+	},
+	loadingText: {
+		...theme.typography.body,
+		color: theme.colors.textSecondary,
+		marginTop: theme.spacing.md,
 	},
 });

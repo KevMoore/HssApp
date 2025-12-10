@@ -1,192 +1,75 @@
 /**
  * Appliance service
  * Provides appliance data for the appliance selection modal
+ * Uses WooCommerce product categories as appliances
  */
+
+import { listCategories, WooCommerceCategory } from './woocommerceService';
 
 export interface Appliance {
 	id: string;
 	name: string;
 	value: string; // URL-friendly value (e.g., "ariston", "worcester")
-	imageUrl: string; // Stock image placeholder for now
+	imageUrl: string; // Category image or placeholder
 }
 
-// Mock appliance data based on the website list
-// Using diverse Unsplash images of heating systems, boilers, and home appliances
-// Each brand has a unique image for visual variety in the demo
-const mockAppliances: Appliance[] = [
-	{
-		id: 'alpha',
-		name: 'ALPHA',
-		value: 'alpha',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'ariston',
-		name: 'ARISTON',
-		value: 'ariston',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'baxi',
-		name: 'BAXI',
-		value: 'baxi',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'chaffoteaux',
-		name: 'CHAFFOTEAUX',
-		value: 'chaffoteaux',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'eogb',
-		name: 'EOGB',
-		value: 'eogb',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'ferroli',
-		name: 'FERROLI',
-		value: 'ferroli',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'gledhill',
-		name: 'GLEDHILL',
-		value: 'gledhill',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'glowworm',
-		name: 'GLOWWORM',
-		value: 'glowworm',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'grant',
-		name: 'GRANT',
-		value: 'grant',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'ideal',
-		name: 'IDEAL',
-		value: 'ideal',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'ideal-commercial',
-		name: 'IDEAL COMMERCIAL',
-		value: 'ideal-commercial',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'intergas',
-		name: 'INTERGAS',
-		value: 'intergas',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'main',
-		name: 'MAIN',
-		value: 'main',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'myson',
-		name: 'MYSON',
-		value: 'myson',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'nuway',
-		name: 'NUWAY',
-		value: 'nuway',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'powermax',
-		name: 'POWERMAX',
-		value: 'powermax',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'ravenheat',
-		name: 'RAVENHEAT',
-		value: 'ravenheat',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'regin',
-		name: 'REGIN',
-		value: 'regin',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'thorn',
-		name: 'THORN',
-		value: 'thorn',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'uncategorised',
-		name: 'Uncategorised',
-		value: 'uncategorised',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'vaillant',
-		name: 'VAILLANT',
-		value: 'vaillant',
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'viessmann',
-		name: 'VIESSMANN',
-		value: 'viessmann',
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: 'worcester',
-		name: 'WORCESTER',
-		value: 'worcester',
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-	},
-];
+// Cache for categories to avoid repeated API calls
+let cachedAppliances: Appliance[] | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Get all available appliances
+ * Map WooCommerce category to Appliance interface
  */
-export function getAllAppliances(): Appliance[] {
-	return mockAppliances;
+function mapCategoryToAppliance(category: WooCommerceCategory): Appliance {
+	return {
+		id: String(category.id),
+		name: category.name.toUpperCase(),
+		value: category.slug,
+		imageUrl: category.image?.src || getDefaultImageUrl(category.slug),
+	};
 }
 
 /**
- * Get appliance by value
+ * Get default image URL for a category slug
  */
-export function getApplianceByValue(value: string): Appliance | undefined {
-	return mockAppliances.find((appliance) => appliance.value === value);
+function getDefaultImageUrl(slug: string): string {
+	// Use a placeholder image - can be enhanced with category-specific images
+	return 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80';
+}
+
+/**
+ * Get all available appliances from WooCommerce categories
+ */
+export async function getAllAppliances(): Promise<Appliance[]> {
+	// Check cache
+	const now = Date.now();
+	if (cachedAppliances && now - cacheTimestamp < CACHE_DURATION) {
+		return cachedAppliances;
+	}
+
+	try {
+		// Fetch all categories from WooCommerce
+		const categories = await listCategories({
+			per_page: 100, // Get up to 100 categories
+		});
+
+		// Map categories to appliances
+		cachedAppliances = categories.map(mapCategoryToAppliance);
+		cacheTimestamp = now;
+
+		return cachedAppliances;
+	} catch (error) {
+		console.error('Error fetching appliances from WooCommerce:', error);
+		// Return empty array or fallback data on error
+		return [];
+	}
+}
+
+/**
+ * Get appliance by value (slug)
+ */
+export async function getApplianceByValue(value: string): Promise<Appliance | undefined> {
+	const appliances = await getAllAppliances();
+	return appliances.find((appliance) => appliance.value === value);
 }

@@ -1,200 +1,11 @@
 /**
  * Parts search service
- * This service handles parts search functionality
- * For now, it uses mock data. In the future, this can be connected to the HSS API
+ * Handles parts search functionality using WooCommerce REST API
  */
 
 import { Part, SearchParams } from '../types';
-
-// Mock data for demonstration
-const mockParts: Part[] = [
-	{
-		id: '1',
-		partNumber: 'WB-12345',
-		gcNumber: 'GC123456',
-		name: 'Worcester Bosch Pump',
-		description:
-			'Genuine Worcester Bosch circulation pump for Greenstar boilers',
-		manufacturer: 'Worcester Bosch',
-		category: 'Pumps',
-		price: 89.99,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=400&fit=crop&q=80',
-		compatibleWith: [
-			'Greenstar 24i',
-			'Greenstar 30i',
-			'Greenstar 34i',
-			'Greenstar 42i',
-			'Greenstar Ri',
-		],
-	},
-	{
-		id: '2',
-		partNumber: 'VA-67890',
-		name: 'Vaillant Heat Exchanger',
-		description: 'Replacement heat exchanger for Vaillant ecoTEC boilers',
-		manufacturer: 'Vaillant',
-		category: 'Heat Exchangers',
-		price: 245.0,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-		compatibleWith: [
-			'ecoTEC plus 824',
-			'ecoTEC plus 831',
-			'ecoTEC plus 837',
-			'ecoTEC pro 28',
-			'ecoTEC pro 31',
-		],
-	},
-	{
-		id: '3',
-		partNumber: '0020027604',
-		name: 'DISPLAY BOARD TC',
-		description: 'Display board for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Electronics',
-		price: undefined,
-		inStock: false,
-		imageUrl:
-			'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '6',
-		partNumber: '0020186152',
-		name: '12 PLATE HEAT EXCHANGER',
-		description: '12 plate heat exchanger for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Heat Exchangers',
-		price: 78.15,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '7',
-		partNumber: '0020186153',
-		name: '14 PLATE HEAT EXCHANGER',
-		description: '14 plate heat exchanger for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Heat Exchangers',
-		price: 83.99,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '8',
-		partNumber: 'S1076600',
-		name: '3 WAY VALVE / HEAT EXCHANGER PIPE',
-		description:
-			'3 way valve and heat exchanger pipe assembly for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Valves',
-		price: 67.78,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '9',
-		partNumber: '0020018574',
-		name: '3 WAY VALVE ASSEMBLY',
-		description: '3 way valve assembly for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Valves',
-		price: 242.0,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '10',
-		partNumber: '0020136956',
-		name: '3 WAY VALVE CARTRIDGE',
-		description: '3 way valve cartridge for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Valves',
-		price: 79.39,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '11',
-		partNumber: '0020118640',
-		name: '3 WAY VALVE MOTOR',
-		description: '3 way valve motor for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Valves',
-		price: 69.17,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '12',
-		partNumber: 'S5720600',
-		name: '3 WAY VALVE MOTOR',
-		description: '3 way valve motor for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Valves',
-		price: 51.15,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '13',
-		partNumber: '0020042355',
-		name: '24 LPG CONVERSION KIT A00200075',
-		description: 'LPG conversion kit for GlowWorm boilers',
-		manufacturer: 'GlowWorm',
-		category: 'Kits',
-		price: undefined,
-		inStock: false,
-		imageUrl:
-			'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '4',
-		partNumber: 'ID-22222',
-		name: 'Ideal Gas Valve',
-		description: 'Gas valve assembly for Ideal Logic boilers',
-		manufacturer: 'Ideal',
-		category: 'Valves',
-		price: 125.0,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop&q=80',
-	},
-	{
-		id: '5',
-		partNumber: 'BA-33333',
-		name: 'Baxi Fan',
-		description: 'Combustion fan for Baxi Main boilers',
-		manufacturer: 'Baxi',
-		category: 'Fans',
-		price: 95.0,
-		inStock: true,
-		imageUrl:
-			'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&h=400&fit=crop&q=80',
-		compatibleWith: [
-			'100/2HE PLUS',
-			'100HE PLUS',
-			'COMBI 100 HE PLUS',
-			'COMBI 80 HE PLUS',
-			'Platinum 15 HE',
-			'Platinum 24 HE',
-			'Solo HE & HE A 12HE',
-			'Solo HE & HE A 15HE',
-			'Solo HE & HE A 18HE',
-			'Solo HE & HE A 24HE',
-			'Solo HE & HE A 30HE',
-		],
-	},
-];
+import { listProducts, getProduct, listCategories } from './woocommerceService';
+import { mapWooCommerceProductToPart, mapWooCommerceProductsToParts } from '../utils/productMapper';
 
 /**
  * Calculate relevance score for a part based on search query
@@ -283,9 +94,6 @@ function calculateRelevanceScore(part: Part, queryLower: string): number {
  * Search for parts based on query and filters with relevance ranking
  */
 export async function searchParts(params: SearchParams): Promise<Part[]> {
-	// Simulate API delay
-	await new Promise((resolve) => setTimeout(resolve, 500));
-
 	const { query, filters } = params;
 	const queryLower = query.toLowerCase().trim();
 
@@ -293,88 +101,245 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 		return [];
 	}
 
-	// Calculate relevance scores and filter
-	const scoredParts = mockParts
-		.map((part) => ({
-			part,
-			score: calculateRelevanceScore(part, queryLower),
-		}))
-		.filter(({ part, score }) => {
-			// Only include parts with a score > 0 (i.e., matched the query)
-			if (score === 0) {
-				return false;
-			}
+	try {
+		// Build WooCommerce API parameters
+		const apiParams: {
+			search?: string;
+			sku?: string;
+			status?: string;
+			stock_status?: string;
+			per_page?: number;
+		} = {
+			status: 'publish', // Only get published products
+			per_page: 100, // Get up to 100 products per page
+		};
 
-			// Apply filters
-			if (filters?.manufacturer && part.manufacturer !== filters.manufacturer) {
-				return false;
-			}
+		// Check if query looks like a SKU (alphanumeric, possibly with dashes)
+		const skuPattern = /^[A-Z0-9\-]+$/i;
+		if (skuPattern.test(queryLower)) {
+			apiParams.sku = query;
+		} else {
+			apiParams.search = query;
+		}
 
-			if (filters?.category && part.category !== filters.category) {
-				return false;
-			}
+		// Apply stock filter if requested
+		if (filters?.inStockOnly) {
+			apiParams.stock_status = 'instock';
+		}
 
-			if (filters?.inStockOnly && !part.inStock) {
-				return false;
-			}
+		// Fetch products from WooCommerce
+		const wooProducts = await listProducts(apiParams);
+		let parts = mapWooCommerceProductsToParts(wooProducts);
 
-			return true;
-		})
-		// Sort by relevance score (highest first)
-		.sort((a, b) => b.score - a.score)
-		// Return just the parts
-		.map(({ part }) => part);
+		// Apply client-side filters (manufacturer, category)
+		if (filters?.manufacturer) {
+			parts = parts.filter((part) => part.manufacturer === filters.manufacturer);
+		}
 
-	return scoredParts;
+		if (filters?.category) {
+			parts = parts.filter((part) => part.category === filters.category);
+		}
+
+		// Calculate relevance scores and sort
+		const scoredParts = parts
+			.map((part) => ({
+				part,
+				score: calculateRelevanceScore(part, queryLower),
+			}))
+			.filter(({ score }) => score > 0) // Only include parts with a score > 0
+			.sort((a, b) => b.score - a.score) // Sort by relevance score (highest first)
+			.map(({ part }) => part);
+
+		return scoredParts;
+	} catch (error) {
+		console.error('Error searching parts:', error);
+		throw new Error('Failed to search parts. Please try again.');
+	}
 }
 
-/**
- * Get popular manufacturers
- */
-export function getPopularManufacturers(): string[] {
-	return [
-		'Worcester Bosch',
-		'Vaillant',
-		'GlowWorm',
-		'Ideal',
-		'Baxi',
-		'Intergas',
-		'Biasi',
-		'Ariston',
-		'Vokera',
-		'Potterton',
-		'Viessmann',
-	];
-}
+// Cache for manufacturers to avoid repeated API calls
+let cachedManufacturers: string[] | null = null;
+let manufacturersCacheTimestamp: number = 0;
+const MANUFACTURERS_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 /**
- * Get part categories
+ * Get popular manufacturers from WooCommerce products
+ * Extracts unique manufacturers from product tags and categories
  */
-export function getCategories(): string[] {
-	return [
-		'Pumps',
-		'Heat Exchangers',
-		'Electronics',
-		'Valves',
-		'Fans',
-		'Sensors',
-		'Burners',
-		'Controls',
-		'Seals',
-		'Filters',
-	];
+export async function getPopularManufacturers(): Promise<string[]> {
+	// Check cache
+	const now = Date.now();
+	if (cachedManufacturers && now - manufacturersCacheTimestamp < MANUFACTURERS_CACHE_DURATION) {
+		return cachedManufacturers;
+	}
+
+	try {
+		// Fetch a sample of products to extract manufacturers
+		// We'll fetch products with tags that might indicate manufacturers
+		const products = await listProducts({
+			status: 'publish',
+			per_page: 100, // Get up to 100 products to extract manufacturers
+		});
+
+		const manufacturersSet = new Set<string>();
+
+		// Extract manufacturers from product tags and categories
+		for (const product of products) {
+			// Check tags for manufacturer indicators
+			if (product.tags && product.tags.length > 0) {
+				for (const tag of product.tags) {
+					const tagName = tag.name.trim();
+					// Filter out generic tags and keep manufacturer-like tags
+					if (
+						tagName.length > 2 &&
+						!tagName.toLowerCase().includes('compatible') &&
+						!tagName.toLowerCase().includes('fits') &&
+						!tagName.toLowerCase().includes('part')
+					) {
+						manufacturersSet.add(tagName);
+					}
+				}
+			}
+
+			// Also check categories as potential manufacturers
+			if (product.categories && product.categories.length > 0) {
+				for (const category of product.categories) {
+					const categoryName = category.name.trim();
+					if (categoryName.length > 2) {
+						manufacturersSet.add(categoryName);
+					}
+				}
+			}
+		}
+
+		// Convert to array and sort
+		cachedManufacturers = Array.from(manufacturersSet)
+			.sort()
+			.slice(0, 20); // Limit to top 20 manufacturers
+		manufacturersCacheTimestamp = now;
+
+		// If we didn't get enough manufacturers, fall back to common ones
+		if (cachedManufacturers.length < 5) {
+			cachedManufacturers = [
+				'Worcester Bosch',
+				'Vaillant',
+				'GlowWorm',
+				'Ideal',
+				'Baxi',
+				'Intergas',
+				'Biasi',
+				'Ariston',
+				'Vokera',
+				'Potterton',
+				'Viessmann',
+			];
+		}
+
+		return cachedManufacturers;
+	} catch (error) {
+		console.error('Error fetching manufacturers from WooCommerce:', error);
+		// Return fallback list on error
+		return [
+			'Worcester Bosch',
+			'Vaillant',
+			'GlowWorm',
+			'Ideal',
+			'Baxi',
+			'Intergas',
+			'Biasi',
+			'Ariston',
+			'Vokera',
+			'Potterton',
+			'Viessmann',
+		];
+	}
+}
+
+// Cache for categories to avoid repeated API calls
+let cachedCategories: string[] | null = null;
+let categoriesCacheTimestamp: number = 0;
+const CATEGORIES_CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+/**
+ * Get part categories from WooCommerce
+ * Fetches categories from WooCommerce categories API
+ */
+export async function getCategories(): Promise<string[]> {
+	// Check cache
+	const now = Date.now();
+	if (cachedCategories && now - categoriesCacheTimestamp < CATEGORIES_CACHE_DURATION) {
+		return cachedCategories;
+	}
+
+	try {
+		// Fetch categories from WooCommerce
+		const categories = await listCategories({
+			per_page: 100, // Get up to 100 categories
+		});
+
+		// Extract category names
+		cachedCategories = categories
+			.map((category) => category.name.trim())
+			.filter((name) => name.length > 0)
+			.sort()
+			.slice(0, 50); // Limit to top 50 categories
+		categoriesCacheTimestamp = now;
+
+		// If we didn't get enough categories, fall back to common ones
+		if (cachedCategories.length < 5) {
+			cachedCategories = [
+				'Pumps',
+				'Heat Exchangers',
+				'Electronics',
+				'Valves',
+				'Fans',
+				'Sensors',
+				'Burners',
+				'Controls',
+				'Seals',
+				'Filters',
+			];
+		}
+
+		return cachedCategories;
+	} catch (error) {
+		console.error('Error fetching categories from WooCommerce:', error);
+		// Return fallback list on error
+		return [
+			'Pumps',
+			'Heat Exchangers',
+			'Electronics',
+			'Valves',
+			'Fans',
+			'Sensors',
+			'Burners',
+			'Controls',
+			'Seals',
+			'Filters',
+		];
+	}
 }
 
 /**
  * Get a single part by ID
  */
 export async function getPartById(id: string): Promise<Part | null> {
-	await new Promise((resolve) => setTimeout(resolve, 300));
-	return mockParts.find((part) => part.id === id) || null;
+	try {
+		const productId = parseInt(id, 10);
+		if (isNaN(productId)) {
+			return null;
+		}
+
+		const wooProduct = await getProduct(productId);
+		return mapWooCommerceProductToPart(wooProduct);
+	} catch (error) {
+		console.error('Error fetching part by ID:', error);
+		return null;
+	}
 }
 
 /**
- * Get search suggestions from parts collection
+ * Get search suggestions from WooCommerce products
  * Returns unique suggestions based on part names, part numbers, and manufacturers
  */
 export async function getPartSuggestions(
@@ -385,62 +350,89 @@ export async function getPartSuggestions(
 		return [];
 	}
 
-	const queryLower = query.trim().toLowerCase();
-	const suggestions = new Set<string>();
+	try {
+		const queryLower = query.trim().toLowerCase();
+		const suggestions = new Set<string>();
 
-	// Collect suggestions from parts
-	for (const part of mockParts) {
-		// Check part number (starts with)
-		if (part.partNumber.toLowerCase().startsWith(queryLower)) {
-			suggestions.add(part.partNumber);
+		// Fetch products from WooCommerce for suggestions
+		const apiParams: {
+			search?: string;
+			sku?: string;
+			status?: string;
+			per_page?: number;
+		} = {
+			status: 'publish',
+			per_page: 50, // Limit to 50 for suggestions
+		};
+
+		// Check if query looks like a SKU
+		const skuPattern = /^[A-Z0-9\-]+$/i;
+		if (skuPattern.test(queryLower)) {
+			apiParams.sku = query;
+		} else {
+			apiParams.search = query;
 		}
 
-		// Check part name (starts with or contains)
-		const nameLower = part.name.toLowerCase();
-		if (nameLower.startsWith(queryLower) || nameLower.includes(queryLower)) {
-			suggestions.add(part.name);
-		}
+		const wooProducts = await listProducts(apiParams);
+		const parts = mapWooCommerceProductsToParts(wooProducts);
 
-		// Check manufacturer (starts with or contains)
-		const manufacturerLower = part.manufacturer.toLowerCase();
-		if (
-			manufacturerLower.startsWith(queryLower) ||
-			manufacturerLower.includes(queryLower)
-		) {
-			suggestions.add(part.manufacturer);
-		}
+		// Collect suggestions from parts
+		for (const part of parts) {
+			// Check part number (starts with)
+			if (part.partNumber.toLowerCase().startsWith(queryLower)) {
+				suggestions.add(part.partNumber);
+			}
 
-		// Check GC number if exists
-		if (part.gcNumber) {
-			const gcLower = part.gcNumber.toLowerCase();
-			if (gcLower.startsWith(queryLower) || gcLower.includes(queryLower)) {
-				suggestions.add(part.gcNumber);
+			// Check part name (starts with or contains)
+			const nameLower = part.name.toLowerCase();
+			if (nameLower.startsWith(queryLower) || nameLower.includes(queryLower)) {
+				suggestions.add(part.name);
+			}
+
+			// Check manufacturer (starts with or contains)
+			const manufacturerLower = part.manufacturer.toLowerCase();
+			if (
+				manufacturerLower.startsWith(queryLower) ||
+				manufacturerLower.includes(queryLower)
+			) {
+				suggestions.add(part.manufacturer);
+			}
+
+			// Check GC number if exists
+			if (part.gcNumber) {
+				const gcLower = part.gcNumber.toLowerCase();
+				if (gcLower.startsWith(queryLower) || gcLower.includes(queryLower)) {
+					suggestions.add(part.gcNumber);
+				}
+			}
+
+			// Limit results
+			if (suggestions.size >= maxResults * 2) {
+				// Get more than needed, then prioritize
+				break;
 			}
 		}
 
-		// Limit results
-		if (suggestions.size >= maxResults * 2) {
-			// Get more than needed, then prioritize
-			break;
+		// Prioritize: exact matches first, then starts with, then contains
+		const suggestionsArray = Array.from(suggestions);
+		const prioritized: string[] = [];
+		const rest: string[] = [];
+
+		for (const suggestion of suggestionsArray) {
+			const suggestionLower = suggestion.toLowerCase();
+			if (suggestionLower === queryLower) {
+				prioritized.unshift(suggestion); // Exact match - highest priority
+			} else if (suggestionLower.startsWith(queryLower)) {
+				prioritized.push(suggestion); // Starts with - high priority
+			} else {
+				rest.push(suggestion); // Contains - lower priority
+			}
 		}
+
+		// Combine prioritized and rest, limit to maxResults
+		return [...prioritized, ...rest].slice(0, maxResults);
+	} catch (error) {
+		console.error('Error getting part suggestions:', error);
+		return []; // Return empty array on error
 	}
-
-	// Prioritize: exact matches first, then starts with, then contains
-	const suggestionsArray = Array.from(suggestions);
-	const prioritized: string[] = [];
-	const rest: string[] = [];
-
-	for (const suggestion of suggestionsArray) {
-		const suggestionLower = suggestion.toLowerCase();
-		if (suggestionLower === queryLower) {
-			prioritized.unshift(suggestion); // Exact match - highest priority
-		} else if (suggestionLower.startsWith(queryLower)) {
-			prioritized.push(suggestion); // Starts with - high priority
-		} else {
-			rest.push(suggestion); // Contains - lower priority
-		}
-	}
-
-	// Combine prioritized and rest, limit to maxResults
-	return [...prioritized, ...rest].slice(0, maxResults);
 }

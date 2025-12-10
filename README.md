@@ -35,11 +35,14 @@ HSS/
 ├── constants/             # App constants
 │   └── theme.ts           # Theme configuration (colors, typography, etc.)
 ├── services/              # Business logic services
-│   └── partsService.ts    # Parts search service
+│   ├── partsService.ts    # Parts search service
+│   ├── applianceService.ts # Appliance/category service
+│   └── woocommerceService.ts # WooCommerce API client
 ├── types/                 # TypeScript type definitions
 │   └── index.ts           # App-wide types
 └── utils/                 # Utility functions
-    └── linking.ts         # External linking utilities
+    ├── linking.ts         # External linking utilities
+    └── productMapper.ts   # WooCommerce product to Part mapper
 ```
 
 ## Getting Started
@@ -98,17 +101,31 @@ The app uses a centralized theme system located in `constants/theme.ts`. Colors 
 
 ## Future Enhancements
 
-- Connect to HSS API for real parts data
-- Add part detail screen
-- Implement filters (manufacturer, category, stock status)
+- Add part detail screen (in progress)
+- Enhanced filters (manufacturer, category, stock status)
 - Add favorites/bookmarks
 - Push notifications for stock updates
 - User authentication for trade accounts
 - Order history
+- Shopping cart integration
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following WooCommerce API credentials:
+
+```
+EXPO_PUBLIC_WOOCOMMERCE_BASE_URL=https://your-store.com
+EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_KEY=your_consumer_key
+EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_SECRET=your_consumer_secret
+```
+
+These credentials are used to authenticate with the WooCommerce REST API for fetching products and categories.
 
 ## Notes
 
-- Currently uses mock data for parts search
+- Product data is fetched from WooCommerce REST API
 - Purchase functionality redirects to the HSS website
 - The app is optimized for both iOS and Android
 - Uses Expo Router for navigation (file-based routing)
