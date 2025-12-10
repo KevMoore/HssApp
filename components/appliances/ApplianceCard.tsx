@@ -13,6 +13,12 @@ export const ApplianceCard: React.FC<ApplianceCardProps> = ({
 	appliance,
 	onPress,
 }) => {
+	console.log('[ApplianceCard] Rendering appliance:', {
+		id: appliance.id,
+		name: appliance.name,
+		imageUrl: appliance.imageUrl,
+	});
+
 	return (
 		<TouchableOpacity
 			style={styles.card}
@@ -20,13 +26,28 @@ export const ApplianceCard: React.FC<ApplianceCardProps> = ({
 			activeOpacity={0.7}
 		>
 			<View style={styles.imageContainer}>
-				<Image
-					source={{ uri: appliance.imageUrl }}
-					style={styles.image}
-					contentFit="cover"
-					transition={200}
-					placeholder={{ blurhash: 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.' }}
-				/>
+				{appliance.imageUrl ? (
+					<Image
+						source={{ uri: appliance.imageUrl }}
+						style={styles.image}
+						contentFit="cover"
+						transition={200}
+						placeholder={{ blurhash: 'LGF5]+Yk^6#M@-5c,1J5@[or[Q6.' }}
+						onError={(error) => {
+							console.error('[ApplianceCard] Image load error:', {
+								imageUrl: appliance.imageUrl,
+								error,
+							});
+						}}
+						onLoad={() => {
+							console.log('[ApplianceCard] Image loaded successfully:', appliance.imageUrl);
+						}}
+					/>
+				) : (
+					<View style={styles.placeholderContainer}>
+						<Text style={styles.placeholderText}>No Image</Text>
+					</View>
+				)}
 			</View>
 			<Text style={styles.name} numberOfLines={2}>
 				{appliance.name}
@@ -62,6 +83,17 @@ const styles = StyleSheet.create({
 		padding: theme.spacing.md,
 		textAlign: 'center',
 		minHeight: 44,
+	},
+	placeholderContainer: {
+		width: '100%',
+		height: '100%',
+		justifyContent: 'center',
+		alignItems: 'center',
+		backgroundColor: theme.colors.surface,
+	},
+	placeholderText: {
+		...theme.typography.bodySmall,
+		color: theme.colors.textSecondary,
 	},
 });
 

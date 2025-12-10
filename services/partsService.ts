@@ -102,6 +102,8 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 	}
 
 	try {
+		console.log('[Search] Starting search:', { query, queryLower, filters });
+
 		// Build WooCommerce API parameters
 		const apiParams: {
 			search?: string;
@@ -109,27 +111,57 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 			status?: string;
 			stock_status?: string;
 			per_page?: number;
+			search_fields?: string[];
 		} = {
 			status: 'publish', // Only get published products
 			per_page: 100, // Get up to 100 products per page
 		};
 
+		// Always use search with search_fields to search across all relevant fields
+		// This ensures comprehensive search results including SKU, name, descriptions, etc.
+		apiParams.search = query;
+		apiParams.search_fields = ['name', 'sku', 'global_unique_id', 'description', 'short_description'];
+		
 		// Check if query looks like a SKU (alphanumeric, possibly with dashes)
 		const skuPattern = /^[A-Z0-9\-]+$/i;
 		if (skuPattern.test(queryLower)) {
-			apiParams.sku = query;
+			// For SKU-like queries, also use exact SKU match as a fallback
+			// Note: WooCommerce will search in SKU field via search_fields, but exact SKU match
+			// can be more precise. However, using both might be too restrictive, so we'll
+			// rely on search_fields which includes 'sku'
+			console.log('[Search] SKU-like query - searching in all fields including SKU:', query);
 		} else {
-			apiParams.search = query;
+			console.log('[Search] Text query - searching in all fields:', query);
 		}
 
 		// Apply stock filter if requested
 		if (filters?.inStockOnly) {
 			apiParams.stock_status = 'instock';
+			console.log('[Search] Filtering by stock status: instock');
 		}
+
+		console.log('[Search] API params:', apiParams);
 
 		// Fetch products from WooCommerce
 		const wooProducts = await listProducts(apiParams);
+		console.log('[Search] WooCommerce returned products:', {
+			count: wooProducts.length,
+			firstProduct: wooProducts[0] ? {
+				id: wooProducts[0].id,
+				name: wooProducts[0].name,
+				sku: wooProducts[0].sku,
+			} : null,
+		});
+
 		let parts = mapWooCommerceProductsToParts(wooProducts);
+		console.log('[Search] Mapped to parts:', {
+			count: parts.length,
+			firstPart: parts[0] ? {
+				id: parts[0].id,
+				name: parts[0].name,
+				partNumber: parts[0].partNumber,
+			} : null,
+		});
 
 		// Apply client-side filters (manufacturer, category)
 		if (filters?.manufacturer) {
@@ -150,9 +182,23 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 			.sort((a, b) => b.score - a.score) // Sort by relevance score (highest first)
 			.map(({ part }) => part);
 
+		console.log('[Search] Final results:', {
+			totalParts: parts.length,
+			scoredParts: scoredParts.length,
+			topScores: scoredParts.slice(0, 5).map((p, i) => ({
+				index: i,
+				name: p.name,
+				partNumber: p.partNumber,
+			})),
+		});
+
 		return scoredParts;
 	} catch (error) {
-		console.error('Error searching parts:', error);
+		console.error('[Search] Error searching parts:', {
+			query,
+			error: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined,
+		});
 		throw new Error('Failed to search parts. Please try again.');
 	}
 }

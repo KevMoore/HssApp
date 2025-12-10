@@ -112,13 +112,13 @@ export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 			<View style={styles.footer}>
 				<View style={styles.meta}>
 					<Text style={styles.manufacturer}>{part.manufacturer}</Text>
-					{part.category && (
-						<Text style={styles.category}> • {part.category}</Text>
-					)}
+					{part.category ? (
+						<Text style={styles.category}>{` • ${part.category}`}</Text>
+					) : null}
 				</View>
-				{part.price && (
+				{part.price ? (
 					<Text style={styles.price}>£{part.price.toFixed(2)}</Text>
-				)}
+				) : null}
 			</View>
 
 			<View style={styles.buttonRow}>

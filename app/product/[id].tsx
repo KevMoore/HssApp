@@ -151,7 +151,7 @@ export default function ProductDetailsScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				{/* Product Image */}
-				{part.imageUrl && (
+				{part.imageUrl ? (
 					<View style={styles.imageContainer}>
 						<Image
 							source={{ uri: part.imageUrl }}
@@ -159,7 +159,7 @@ export default function ProductDetailsScreen() {
 							resizeMode="contain"
 						/>
 					</View>
-				)}
+				) : null}
 
 				{/* Product Info */}
 				<View style={styles.content}>
@@ -195,12 +195,12 @@ export default function ProductDetailsScreen() {
 					</View>
 
 					{/* Description */}
-					{part.description && (
+					{part.description ? (
 						<Text style={styles.description}>{part.description}</Text>
-					)}
+					) : null}
 
 					{/* Compatibility */}
-					{part.compatibleWith && part.compatibleWith.length > 0 && (
+					{part.compatibleWith && part.compatibleWith.length > 0 ? (
 						<View style={styles.compatibilitySection}>
 							<TouchableOpacity
 								style={styles.compatibilityHeader}
@@ -214,25 +214,25 @@ export default function ProductDetailsScreen() {
 									color={theme.colors.textSecondary}
 								/>
 							</TouchableOpacity>
-							{compatibilityExpanded && (
+							{compatibilityExpanded ? (
 								<Text style={styles.compatibilityList}>
 									{part.compatibleWith.join(', ')}
 								</Text>
-							)}
+							) : null}
 						</View>
-					)}
+					) : null}
 
 					{/* Price and Stock */}
 					<View style={styles.priceStockContainer}>
 						<View style={styles.priceContainer}>
-							{part.price && (
+							{part.price ? (
 								<>
 									<Text style={styles.priceLabel}>
 										£{part.price.toFixed(2)}
 									</Text>
 									<Text style={styles.priceNote}>(ex VAT)</Text>
 								</>
-							)}
+							) : null}
 						</View>
 						<View style={styles.stockContainer}>
 							<View
@@ -313,7 +313,7 @@ export default function ProductDetailsScreen() {
 					</View>
 
 					{/* Related Parts */}
-					{relatedParts.length > 0 && (
+					{relatedParts.length > 0 ? (
 						<View style={styles.relatedSection}>
 							<Text style={styles.relatedTitle}>You May Also Like:</Text>
 							{relatedParts.map((relatedPart) => (
@@ -328,15 +328,15 @@ export default function ProductDetailsScreen() {
 										{relatedPart.partNumber}
 									</Text>
 									<Text style={styles.relatedPartName}>{relatedPart.name}</Text>
-									{!relatedPart.inStock && (
+									{!relatedPart.inStock ? (
 										<Text style={styles.relatedStockNote}>
 											Please call for stock availability: 01202 718660
 										</Text>
-									)}
+									) : null}
 								</TouchableOpacity>
 							))}
 						</View>
-					)}
+					) : null}
 				</View>
 			</ScrollView>
 		</SafeAreaView>

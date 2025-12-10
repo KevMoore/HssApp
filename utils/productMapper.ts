@@ -5,6 +5,7 @@
 
 import { Part } from '../types';
 import { WooCommerceProduct } from '../services/woocommerceService';
+import { stripHtmlTags } from './htmlUtils';
 
 /**
  * Map WooCommerce product to Part interface
@@ -74,12 +75,16 @@ export function mapWooCommerceProductToPart(product: WooCommerceProduct): Part {
 		});
 	}
 
+	// Clean descriptions by stripping HTML tags
+	const rawDescription = product.short_description || product.description || '';
+	const cleanDescription = stripHtmlTags(rawDescription);
+
 	return {
 		id: String(product.id),
 		partNumber: product.sku || String(product.id),
 		gcNumber,
 		name: product.name,
-		description: product.short_description || product.description,
+		description: cleanDescription || undefined,
 		manufacturer,
 		category,
 		price,

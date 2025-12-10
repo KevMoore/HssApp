@@ -102,7 +102,9 @@ export default function SearchScreen() {
 		if (error) {
 			return (
 				<View style={styles.emptyState}>
-					<Text style={styles.emptyStateError}>{error}</Text>
+					<Text style={styles.emptyStateError}>
+						{typeof error === 'string' ? error : 'An error occurred'}
+					</Text>
 				</View>
 			);
 		}
@@ -177,13 +179,13 @@ export default function SearchScreen() {
 				</View>
 			</View>
 
-			{parts.length > 0 && (
+			{parts.length > 0 ? (
 				<View style={styles.resultsHeader}>
 					<Text style={styles.resultsCount}>
-						{parts.length} {parts.length === 1 ? 'result' : 'results'} found
+						{`${parts.length} ${parts.length === 1 ? 'result' : 'results'} found`}
 					</Text>
 				</View>
-			)}
+			) : null}
 
 			<View style={styles.listContainer}>
 				<FlashList<Part>

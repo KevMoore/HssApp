@@ -210,6 +210,13 @@ const apiRequest = async <T>(
 		queryParams.toString() ? `?${queryParams.toString()}` : ''
 	}`;
 
+	console.log('[WooCommerce API] Request:', {
+		endpoint,
+		url,
+		params: params || {},
+		method: 'GET',
+	});
+
 	try {
 		const response = await fetch(url, {
 			method: 'GET',
@@ -219,8 +226,16 @@ const apiRequest = async <T>(
 			},
 		});
 
+		console.log('[WooCommerce API] Response:', {
+			status: response.status,
+			statusText: response.statusText,
+			ok: response.ok,
+			headers: Object.fromEntries(response.headers.entries()),
+		});
+
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => ({}));
+			console.error('[WooCommerce API] Error Response:', errorData);
 			throw new Error(
 				`WooCommerce API error: ${response.status} ${
 					response.statusText
@@ -228,8 +243,22 @@ const apiRequest = async <T>(
 			);
 		}
 
-		return await response.json();
+		const data = await response.json();
+		console.log('[WooCommerce API] Success:', {
+			endpoint,
+			dataType: Array.isArray(data) ? 'array' : typeof data,
+			dataLength: Array.isArray(data) ? data.length : 'N/A',
+			firstItem: Array.isArray(data) && data.length > 0 ? data[0] : data,
+		});
+
+		return data;
 	} catch (error) {
+		console.error('[WooCommerce API] Exception:', {
+			endpoint,
+			url,
+			error: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined,
+		});
 		if (error instanceof Error) {
 			throw error;
 		}
@@ -250,6 +279,7 @@ export async function listProducts(params?: {
 	sku?: string;
 	status?: string;
 	stock_status?: string;
+	search_fields?: string[]; // Fields to search in: name, sku, global_unique_id, description, short_description
 }): Promise<WooCommerceProduct[]> {
 	const queryParams: Record<string, any> = {
 		page: params?.page || 1,
@@ -258,6 +288,14 @@ export async function listProducts(params?: {
 
 	if (params?.search) {
 		queryParams.search = params.search;
+		// Include search_fields to search across all relevant fields
+		// Default to all fields if not specified
+		if (params?.search_fields && params.search_fields.length > 0) {
+			queryParams.search_fields = params.search_fields.join(',');
+		} else {
+			// Search in all available fields by default
+			queryParams.search_fields = 'name,sku,global_unique_id,description,short_description';
+		}
 	}
 	if (params?.category) {
 		queryParams.category = params.category;
