@@ -64,7 +64,14 @@
           "enableBackgroundRemoteNotifications": true
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.hssspares.app",
+          "enableGooglePay": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

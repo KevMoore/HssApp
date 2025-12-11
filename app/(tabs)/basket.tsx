@@ -11,7 +11,6 @@ import {
 	Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { theme } from '../../constants/theme';
@@ -23,14 +22,21 @@ import {
 	calculateVat,
 } from '../../utils/env';
 import {
-	getCartCheckoutUrl,
-	syncLocalBasketToWooCommerce,
-	getCart,
-	getCartToken,
-	clearCart,
-	deleteCartToken,
-} from '../../services/woocommerceCartService';
-import Constants from 'expo-constants';
+	createOrder,
+	updateOrder,
+	WooCommerceOrder,
+	WooCommerceOrderBilling,
+} from '../../services/woocommerceOrdersService';
+import { useRouter } from 'expo-router';
+import { useStripe } from '@stripe/stripe-react-native';
+import {
+	initializePaymentSheetHelper,
+	presentPaymentSheetHelper,
+} from '../../services/stripeService';
+import {
+	BillingAddressForm,
+	BillingAddress,
+} from '../../components/checkout/BillingAddressForm';
 
 export default function BasketScreen() {
 	const {
@@ -41,10 +47,18 @@ export default function BasketScreen() {
 		loadBasket,
 		updateQuantity,
 		removeItem,
+		clear,
 	} = useBasketStore();
-	const [showCheckoutWebView, setShowCheckoutWebView] = useState(false);
-	const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-	const [isEstablishingSession, setIsEstablishingSession] = useState(false);
+	const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+	const [showBillingForm, setShowBillingForm] = useState(false);
+	const [pendingOrder, setPendingOrder] = useState<WooCommerceOrder | null>(
+		null
+	);
+	const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(
+		null
+	);
+	const router = useRouter();
+	const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
 	useFocusEffect(
 		useCallback(() => {
@@ -91,163 +105,31 @@ export default function BasketScreen() {
 
 	const handleCheckout = async () => {
 		try {
-			setIsEstablishingSession(true);
+			setIsProcessingCheckout(true);
 
-			// CRITICAL: Check if local basket is empty
+			// Check if local basket is empty
 			if (!items || items.length === 0) {
-				console.log(
-					'[Checkout] Local basket is empty - clearing WooCommerce cart and token'
-				);
-				try {
-					await clearCart();
-				} catch (error) {
-					console.warn(
-						'[Checkout] Error clearing cart, deleting token anyway:',
-						error
-					);
-					await deleteCartToken();
-				}
 				throw new Error(
 					'Your basket is empty. Please add items before checkout.'
 				);
 			}
 
-			// First, sync all local basket items to WooCommerce cart
-			const localItems = items.map((item) => ({
-				productId: parseInt(item.id, 10),
-				quantity: item.quantity,
-			}));
+			// Calculate total for Stripe (in pence)
+			const deliveryCharge = getNextDayDeliveryCharge();
+			const subtotalWithDelivery = total + deliveryCharge;
+			const vatAmount = calculateVat(subtotalWithDelivery);
+			const grandTotal = subtotalWithDelivery + vatAmount;
+			const amountInPence = Math.round(grandTotal * 100);
 
-			console.log('[Checkout] Syncing basket to WooCommerce cart...', {
-				itemCount: localItems.length,
-				items: localItems.map((item) => ({
-					productId: item.productId,
-					quantity: item.quantity,
-				})),
-			});
-
-			// Sync all items to WooCommerce cart - this returns the cart
-			// This function clears existing cart items before adding new ones
-			const cart = await syncLocalBasketToWooCommerce(localItems);
-
-			if (!cart.items || cart.items.length === 0) {
-				console.error('[Checkout] Cart is empty after sync', {
-					cartResponse: cart,
-					localItemCount: localItems.length,
-				});
-				throw new Error(
-					'Cart is empty after sync. Please add items before checkout.'
-				);
-			}
-
-			// Verify cart matches local basket
-			const cartProductIds = new Set(
-				cart.items.map((item) => item.product_id.toString())
-			);
-			const localProductIds = new Set(
-				localItems.map((item) => item.productId.toString())
-			);
-
-			const missingInCart = localItems.filter(
-				(item) => !cartProductIds.has(item.productId.toString())
-			);
-			const extraInCart = cart.items.filter(
-				(item) => !localProductIds.has(item.product_id.toString())
-			);
-
-			if (missingInCart.length > 0 || extraInCart.length > 0) {
-				console.warn('[Checkout] Cart mismatch detected', {
-					missingInCart: missingInCart.map((item) => ({
-						productId: item.productId,
-						quantity: item.quantity,
-					})),
-					extraInCart: extraInCart.map((item) => ({
-						productId: item.product_id,
-						quantity: item.quantity,
-					})),
-				});
-
-				// If there are extra items in cart (old items), try to clear and resync
-				if (extraInCart.length > 0) {
-					console.log(
-						'[Checkout] Clearing cart and resyncing due to extra items'
-					);
-					try {
-						await clearCart();
-						const retryCart = await syncLocalBasketToWooCommerce(localItems);
-						if (retryCart.items && retryCart.items.length > 0) {
-							console.log('[Checkout] Resync successful');
-							// Use the retry cart
-							Object.assign(cart, retryCart);
-						}
-					} catch (retryError) {
-						console.error('[Checkout] Resync failed:', retryError);
-						// Continue with original cart - user can see the mismatch
-					}
-				}
-			}
-
-			console.log('[Checkout] Cart synced successfully', {
-				itemCount: cart.items.length,
-				localItemCount: localItems.length,
-				items: cart.items.map((item) => ({
-					id: item.id,
-					productId: item.product_id,
-					quantity: item.quantity,
-					name: item.name,
-				})),
-			});
-
-			// Get cart token and base URL
-			const cartToken = await getCartToken();
-			const baseUrl =
-				process.env.EXPO_PUBLIC_WOOCOMMERCE_BASE_URL ||
-				Constants.expoConfig?.extra?.woocommerceBaseUrl ||
-				'https://hssspares.co.uk';
-			const normalizedUrl = baseUrl.replace(/\/$/, '');
-			const storeApiUrl = `${normalizedUrl}/wp-json/wc/store/v1`;
-
-			// CRITICAL: Make a request to Store API with Cart-Token header BEFORE opening WebView
-			// This establishes the session on the server side so the web page can recognize the cart
-			console.log('[Checkout] Establishing web session with Store API...', {
-				token: cartToken.substring(0, 10) + '...',
-			});
-
-			// Make a request to the cart endpoint - this should help establish the session
-			// The WebView will share cookies with native requests on Android, and we'll inject JS on iOS
-			const sessionResponse = await fetch(`${storeApiUrl}/cart`, {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json',
-					'Cart-Token': cartToken,
-				},
-			});
-
-			if (!sessionResponse.ok) {
-				console.warn(
-					'[Checkout] Session establishment request failed, but continuing...',
-					sessionResponse.status
-				);
-			} else {
-				console.log('[Checkout] Session established successfully');
-			}
-
-			// Get the basket URL with cart token
-			const basketUrl = `${normalizedUrl}/basket/?cart_token=${encodeURIComponent(
-				cartToken
-			)}`;
-
-			console.log('[Checkout] Opening basket in WebView:', basketUrl);
-
-			setCheckoutUrl(basketUrl);
-			setShowCheckoutWebView(true);
+			// Show billing address form first
+			setShowBillingForm(true);
 		} catch (error) {
-			console.error('Error preparing checkout:', error);
+			console.error('Error starting checkout:', error);
 			Alert.alert(
 				'Error',
 				error instanceof Error
 					? error.message
-					: 'Failed to open checkout. Please try again.',
+					: 'Failed to start checkout. Please try again.',
 				[
 					{
 						text: 'OK',
@@ -255,7 +137,164 @@ export default function BasketScreen() {
 				]
 			);
 		} finally {
-			setIsEstablishingSession(false);
+			setIsProcessingCheckout(false);
+		}
+	};
+
+	const handleBillingAddressSubmit = async (address: BillingAddress) => {
+		try {
+			setIsProcessingCheckout(true);
+			setShowBillingForm(false);
+			setBillingAddress(address);
+
+			// Convert billing address to WooCommerce format
+			const billing: WooCommerceOrderBilling = {
+				first_name: address.first_name,
+				last_name: address.last_name,
+				company: address.company || '',
+				address_1: address.address_1,
+				address_2: address.address_2 || '',
+				city: address.city,
+				state: address.state || '',
+				postcode: address.postcode,
+				country: address.country || 'GB',
+				email: address.email || '',
+				phone: address.phone || '',
+			};
+
+			console.log('[Checkout] Creating order in WooCommerce...', {
+				itemCount: items.length,
+			});
+
+			// Create order in WooCommerce with "pending payment" status and billing address
+			const order = await createOrder(items, billing);
+
+			console.log('[Checkout] Order created:', {
+				orderId: order.id,
+				status: order.status,
+				total: order.total,
+			});
+
+			// Store pending order
+			setPendingOrder(order);
+
+			// Calculate total for Stripe (in pence)
+			const deliveryCharge = getNextDayDeliveryCharge();
+			const subtotalWithDelivery = total + deliveryCharge;
+			const vatAmount = calculateVat(subtotalWithDelivery);
+			const grandTotal = subtotalWithDelivery + vatAmount;
+			const amountInPence = Math.round(grandTotal * 100);
+
+			// TODO: Create PaymentIntent on backend and get clientSecret
+			// For now, using mock client secret for development
+			const clientSecret = 'pi_mock_client_secret_for_development';
+			console.warn(
+				'[Checkout] Using mock PaymentIntent - replace with backend API call'
+			);
+
+			// Initialize Stripe PaymentSheet
+			const initError = await initializePaymentSheetHelper(
+				initPaymentSheet,
+				clientSecret
+			);
+			if (initError.error) {
+				throw new Error(
+					`Failed to initialize payment: ${
+						initError.error.message || 'Unknown error'
+					}`
+				);
+			}
+
+			// Present Stripe PaymentSheet
+			const paymentResult = await presentPaymentSheetHelper(
+				presentPaymentSheet
+			);
+			if (paymentResult.error) {
+				// User cancelled or payment failed
+				Alert.alert(
+					'Payment Cancelled',
+					paymentResult.error.message || 'Payment was cancelled or failed.',
+					[
+						{
+							text: 'OK',
+							onPress: () => {
+								setPendingOrder(null);
+								setBillingAddress(null);
+							},
+						},
+					]
+				);
+				return;
+			}
+
+			// Payment successful - update order status
+			await handlePaymentSuccess(order.id);
+		} catch (error) {
+			console.error('Error processing payment:', error);
+			Alert.alert(
+				'Error',
+				error instanceof Error
+					? error.message
+					: 'Failed to process payment. Please try again.',
+				[
+					{
+						text: 'OK',
+						onPress: () => {
+							setPendingOrder(null);
+							setBillingAddress(null);
+						},
+					},
+				]
+			);
+		} finally {
+			setIsProcessingCheckout(false);
+		}
+	};
+
+	const handlePaymentSuccess = async (orderId: number) => {
+		try {
+			// Update order to "processing" status (paid, ready for back office)
+			const updatedOrder = await updateOrder(orderId, {
+				status: 'processing',
+				set_paid: true,
+				date_paid: new Date().toISOString(),
+			});
+
+			console.log('[Checkout] Order updated to paid:', {
+				orderId: updatedOrder.id,
+				status: updatedOrder.status,
+			});
+
+			// Clear the basket
+			await clear();
+
+			// Show success message with order details
+			Alert.alert(
+				'Payment Successful!',
+				`Your order #${
+					updatedOrder.id
+				} has been placed successfully.\n\nTotal: £${parseFloat(
+					updatedOrder.total
+				).toFixed(2)}\n\nYou can view your orders in the Orders section.`,
+				[
+					{
+						text: 'View Orders',
+						onPress: () => {
+							router.push('/(tabs)/orders');
+						},
+					},
+					{
+						text: 'OK',
+						style: 'default',
+					},
+				]
+			);
+
+			setPendingOrder(null);
+			setBillingAddress(null);
+		} catch (error) {
+			console.error('Error updating order:', error);
+			throw error;
 		}
 	};
 
@@ -431,12 +470,13 @@ export default function BasketScreen() {
 					</View>
 
 					<Button
-						title={isEstablishingSession ? 'Preparing...' : 'Checkout'}
+						title={isProcessingCheckout ? 'Processing...' : 'Checkout'}
 						onPress={handleCheckout}
 						variant="primary"
 						size="large"
 						style={styles.checkoutButton}
-						disabled={isEstablishingSession}
+						disabled={isProcessingCheckout}
+						loading={isProcessingCheckout}
 					/>
 
 					<Text style={styles.checkoutNote}>
@@ -445,70 +485,38 @@ export default function BasketScreen() {
 				</View>
 			</ScrollView>
 
-			{/* WebView Modal for Checkout */}
+			{/* Billing Address Form Modal */}
 			<Modal
-				visible={showCheckoutWebView}
+				visible={showBillingForm}
 				animationType="slide"
-				onRequestClose={() => setShowCheckoutWebView(false)}
+				onRequestClose={() => {
+					setShowBillingForm(false);
+					setBillingAddress(null);
+				}}
 			>
-				<SafeAreaView style={styles.webViewContainer} edges={['top']}>
-					<View style={styles.webViewHeader}>
-						<Text style={styles.webViewTitle}>Checkout</Text>
+				<SafeAreaView
+					style={styles.modalContainer}
+					edges={['top', 'bottom', 'left', 'right']}
+				>
+					<View style={styles.modalHeader}>
+						<Text style={styles.modalTitle}>Billing Address</Text>
 						<TouchableOpacity
-							style={styles.webViewCloseButton}
-							onPress={() => setShowCheckoutWebView(false)}
+							style={styles.modalCloseButton}
+							onPress={() => {
+								setShowBillingForm(false);
+								setBillingAddress(null);
+							}}
 						>
 							<Ionicons name="close" size={24} color={theme.colors.text} />
 						</TouchableOpacity>
 					</View>
-					{checkoutUrl && (
-						<WebView
-							source={{ uri: checkoutUrl }}
-							style={styles.webView}
-							javaScriptEnabled={true}
-							domStorageEnabled={true}
-							sharedCookiesEnabled={true}
-							thirdPartyCookiesEnabled={true}
-							startInLoadingState={true}
-							scalesPageToFit={true}
-							injectedJavaScript={`
-								// Inject JavaScript to help establish session
-								// Read cart_token from URL and make a request to Store API
-								(function() {
-									const urlParams = new URLSearchParams(window.location.search);
-									const cartToken = urlParams.get('cart_token');
-									
-									if (cartToken) {
-										console.log('[WebView] Cart token found in URL');
-										// Make a request to Store API to establish session
-										// This helps WooCommerce recognize the cart
-										const baseUrl = window.location.origin;
-										fetch(baseUrl + '/wp-json/wc/store/v1/cart', {
-											method: 'GET',
-											headers: {
-												'Content-Type': 'application/json',
-												'Cart-Token': cartToken
-											},
-											credentials: 'include'
-										}).then(() => {
-											console.log('[WebView] Session established via Store API');
-										}).catch((err) => {
-											console.error('[WebView] Error establishing session:', err);
-										});
-									}
-								})();
-								true; // Required for injected JavaScript
-							`}
-							onError={(syntheticEvent) => {
-								const { nativeEvent } = syntheticEvent;
-								console.error('[WebView] Error:', nativeEvent);
-							}}
-							onHttpError={(syntheticEvent) => {
-								const { nativeEvent } = syntheticEvent;
-								console.error('[WebView] HTTP Error:', nativeEvent);
-							}}
-						/>
-					)}
+					<BillingAddressForm
+						onSubmit={handleBillingAddressSubmit}
+						onCancel={() => {
+							setShowBillingForm(false);
+							setBillingAddress(null);
+						}}
+					/>
 				</SafeAreaView>
 			</Modal>
 		</SafeAreaView>
@@ -717,29 +725,25 @@ const styles = StyleSheet.create({
 		textAlign: 'center',
 		marginTop: theme.spacing.xs,
 	},
-	webViewContainer: {
+	modalContainer: {
 		flex: 1,
 		backgroundColor: theme.colors.background,
 	},
-	webViewHeader: {
+	modalHeader: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		padding: theme.spacing.md,
-		backgroundColor: theme.colors.surfaceElevated,
 		borderBottomWidth: 1,
 		borderBottomColor: theme.colors.border,
+		backgroundColor: theme.colors.surfaceElevated,
 	},
-	webViewTitle: {
-		...theme.typography.h3,
+	modalTitle: {
+		...theme.typography.h2,
 		color: theme.colors.text,
-		fontWeight: '600',
+		fontWeight: '700',
 	},
-	webViewCloseButton: {
+	modalCloseButton: {
 		padding: theme.spacing.xs,
-	},
-	webView: {
-		flex: 1,
-		backgroundColor: theme.colors.background,
 	},
 });

@@ -72,6 +72,11 @@ export default function TabsLayout() {
 				<Label>Stores</Label>
 			</NativeTabs.Trigger>
 
+			<NativeTabs.Trigger name="orders">
+				<Icon sf="receipt" drawable="ic_receipt" />
+				<Label>Orders</Label>
+			</NativeTabs.Trigger>
+
 			<NativeTabs.Trigger name="account">
 				<Icon sf="person.circle" drawable="ic_account" />
 				<Label>Account</Label>
