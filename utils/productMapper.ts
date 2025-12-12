@@ -11,11 +11,40 @@ import { stripHtmlTags } from './htmlUtils';
  * Map WooCommerce product to Part interface
  */
 export function mapWooCommerceProductToPart(product: WooCommerceProduct): Part {
-	// Extract first image URL
-	const imageUrl =
-		product.images && product.images.length > 0
-			? product.images[0].src
-			: undefined;
+	// Extract first image URL with better error handling and logging
+	let imageUrl: string | undefined = undefined;
+
+	if (
+		product.images &&
+		Array.isArray(product.images) &&
+		product.images.length > 0
+	) {
+		const firstImage = product.images[0];
+		if (firstImage && firstImage.src) {
+			const src = firstImage.src.trim();
+			// Only set imageUrl if it's a non-empty string
+			if (src && src.length > 0) {
+				imageUrl = src;
+			}
+		}
+	}
+
+	// Log image extraction for debugging
+	if (!imageUrl) {
+		console.log('[ProductMapper] No image found for product:', {
+			id: product.id,
+			name: product.name,
+			hasImages: !!product.images,
+			imagesLength: product.images?.length || 0,
+			imagesArray: product.images,
+		});
+	} else {
+		console.log('[ProductMapper] Image extracted for product:', {
+			id: product.id,
+			name: product.name,
+			imageUrl,
+		});
+	}
 
 	// Extract category name (use first category)
 	const category =

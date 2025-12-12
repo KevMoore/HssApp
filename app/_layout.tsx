@@ -1,15 +1,13 @@
+import React, { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StripeProvider } from '@stripe/stripe-react-native';
-import Constants from 'expo-constants';
 import { theme } from '../constants/theme';
 import { DeepLinkProvider } from '../contexts/DeepLinkContext';
 import { NotificationPrompt } from '../components/NotificationPrompt';
 import { useOnboarding } from '../hooks/useOnboarding';
-import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '../services/notificationService';
 import { AppState, AppStateStatus } from 'react-native';
@@ -232,36 +230,12 @@ function RootLayoutContent() {
 	);
 }
 
-// Get Stripe publishable key from environment
-const getStripePublishableKey = (): string => {
-	const publishableKey =
-		process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
-		Constants.expoConfig?.extra?.stripePublishableKey;
-
-	if (!publishableKey) {
-		console.warn(
-			'Stripe publishable key not configured. Stripe payments will not work.'
-		);
-		return ''; // Return empty string - StripeProvider will handle gracefully
-	}
-
-	return publishableKey;
-};
-
 export default function RootLayout() {
-	const stripePublishableKey = getStripePublishableKey();
-
 	return (
 		<SafeAreaProvider>
-			<StripeProvider
-				publishableKey={stripePublishableKey}
-				merchantIdentifier="merchant.com.hssspares.app"
-				urlScheme="hss"
-			>
-				<DeepLinkProvider>
-					<RootLayoutContent />
-				</DeepLinkProvider>
-			</StripeProvider>
+			<DeepLinkProvider>
+				<RootLayoutContent />
+			</DeepLinkProvider>
 		</SafeAreaProvider>
 	);
 }

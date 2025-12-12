@@ -225,6 +225,7 @@ export interface UpdateOrderRequest {
 	set_paid?: boolean;
 	date_paid?: string;
 	transaction_id?: string;
+	billing?: WooCommerceOrderBilling;
 }
 
 /**

@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert } from 'react-native';
+import {
+	View,
+	Text,
+	StyleSheet,
+	TouchableOpacity,
+	Image,
+	Alert,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Part } from '../../types';
@@ -70,12 +77,36 @@ export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 			onPress={onPress}
 			activeOpacity={0.7}
 		>
-			{part.imageUrl && (
+			{part.imageUrl ? (
 				<Image
 					source={{ uri: part.imageUrl }}
 					style={styles.image}
 					resizeMode="cover"
+					onError={(error) => {
+						console.error('[PartCard] Image load error:', {
+							partId: part.id,
+							partNumber: part.partNumber,
+							imageUrl: part.imageUrl,
+							error,
+						});
+					}}
+					onLoad={() => {
+						console.log('[PartCard] Image loaded successfully:', {
+							partId: part.id,
+							partNumber: part.partNumber,
+							imageUrl: part.imageUrl,
+						});
+					}}
 				/>
+			) : (
+				<View style={styles.imagePlaceholder}>
+					<Ionicons
+						name="image-outline"
+						size={48}
+						color={theme.colors.textLight}
+					/>
+					<Text style={styles.imagePlaceholderText}>No Image</Text>
+				</View>
 			)}
 			<View style={styles.header}>
 				<View style={styles.headerLeft}>
@@ -171,6 +202,23 @@ const styles = StyleSheet.create({
 		backgroundColor: theme.colors.surface,
 		marginBottom: theme.spacing.md,
 		borderRadius: theme.borderRadius.md,
+	},
+	imagePlaceholder: {
+		width: '100%',
+		height: 200,
+		backgroundColor: theme.colors.surface,
+		marginBottom: theme.spacing.md,
+		borderRadius: theme.borderRadius.md,
+		justifyContent: 'center',
+		alignItems: 'center',
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+		borderStyle: 'dashed',
+	},
+	imagePlaceholderText: {
+		...theme.typography.bodySmall,
+		color: theme.colors.textLight,
+		marginTop: theme.spacing.xs,
 	},
 	header: {
 		flexDirection: 'row',

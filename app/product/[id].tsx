@@ -151,15 +151,39 @@ export default function ProductDetailsScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				{/* Product Image */}
-				{part.imageUrl ? (
-					<View style={styles.imageContainer}>
+				<View style={styles.imageContainer}>
+					{part.imageUrl ? (
 						<Image
 							source={{ uri: part.imageUrl }}
 							style={styles.image}
 							resizeMode="contain"
+							onError={(error) => {
+								console.error('[ProductDetails] Image load error:', {
+									partId: part.id,
+									partNumber: part.partNumber,
+									imageUrl: part.imageUrl,
+									error,
+								});
+							}}
+							onLoad={() => {
+								console.log('[ProductDetails] Image loaded successfully:', {
+									partId: part.id,
+									partNumber: part.partNumber,
+									imageUrl: part.imageUrl,
+								});
+							}}
 						/>
-					</View>
-				) : null}
+					) : (
+						<View style={styles.imagePlaceholder}>
+							<Ionicons
+								name="image-outline"
+								size={64}
+								color={theme.colors.textLight}
+							/>
+							<Text style={styles.imagePlaceholderText}>No Image Available</Text>
+						</View>
+					)}
+				</View>
 
 				{/* Product Info */}
 				<View style={styles.content}>
@@ -387,6 +411,21 @@ const styles = StyleSheet.create({
 	image: {
 		width: '100%',
 		height: '100%',
+	},
+	imagePlaceholder: {
+		width: '100%',
+		height: '100%',
+		justifyContent: 'center',
+		alignItems: 'center',
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+		borderStyle: 'dashed',
+		borderRadius: theme.borderRadius.md,
+	},
+	imagePlaceholderText: {
+		...theme.typography.body,
+		color: theme.colors.textLight,
+		marginTop: theme.spacing.sm,
 	},
 	content: {
 		padding: theme.spacing.md,

@@ -8,7 +8,6 @@ import {
 	TouchableOpacity,
 	ActivityIndicator,
 	Alert,
-	Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,15 +27,10 @@ import {
 	WooCommerceOrderBilling,
 } from '../../services/woocommerceOrdersService';
 import { useRouter } from 'expo-router';
-import { useStripe } from '@stripe/stripe-react-native';
 import {
-	initializePaymentSheetHelper,
-	presentPaymentSheetHelper,
-} from '../../services/stripeService';
-import {
-	BillingAddressForm,
-	BillingAddress,
-} from '../../components/checkout/BillingAddressForm';
+	MockPaymentModal,
+	MockPaymentResult,
+} from '../../components/checkout/MockPaymentModal';
 
 export default function BasketScreen() {
 	const {
@@ -50,15 +44,11 @@ export default function BasketScreen() {
 		clear,
 	} = useBasketStore();
 	const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-	const [showBillingForm, setShowBillingForm] = useState(false);
 	const [pendingOrder, setPendingOrder] = useState<WooCommerceOrder | null>(
 		null
 	);
-	const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(
-		null
-	);
+	const [showPaymentModal, setShowPaymentModal] = useState(false);
 	const router = useRouter();
-	const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
 	useFocusEffect(
 		useCallback(() => {
@@ -114,60 +104,19 @@ export default function BasketScreen() {
 				);
 			}
 
-			// Calculate total for Stripe (in pence)
+			// Calculate total (in pence for consistency)
 			const deliveryCharge = getNextDayDeliveryCharge();
 			const subtotalWithDelivery = total + deliveryCharge;
 			const vatAmount = calculateVat(subtotalWithDelivery);
 			const grandTotal = subtotalWithDelivery + vatAmount;
 			const amountInPence = Math.round(grandTotal * 100);
 
-			// Show billing address form first
-			setShowBillingForm(true);
-		} catch (error) {
-			console.error('Error starting checkout:', error);
-			Alert.alert(
-				'Error',
-				error instanceof Error
-					? error.message
-					: 'Failed to start checkout. Please try again.',
-				[
-					{
-						text: 'OK',
-					},
-				]
-			);
-		} finally {
-			setIsProcessingCheckout(false);
-		}
-	};
-
-	const handleBillingAddressSubmit = async (address: BillingAddress) => {
-		try {
-			setIsProcessingCheckout(true);
-			setShowBillingForm(false);
-			setBillingAddress(address);
-
-			// Convert billing address to WooCommerce format
-			const billing: WooCommerceOrderBilling = {
-				first_name: address.first_name,
-				last_name: address.last_name,
-				company: address.company || '',
-				address_1: address.address_1,
-				address_2: address.address_2 || '',
-				city: address.city,
-				state: address.state || '',
-				postcode: address.postcode,
-				country: address.country || 'GB',
-				email: address.email || '',
-				phone: address.phone || '',
-			};
-
 			console.log('[Checkout] Creating order in WooCommerce...', {
 				itemCount: items.length,
 			});
 
-			// Create order in WooCommerce with "pending payment" status and billing address
-			const order = await createOrder(items, billing);
+			// Create order in WooCommerce with "pending payment" status
+			const order = await createOrder(items);
 
 			console.log('[Checkout] Order created:', {
 				orderId: order.id,
@@ -175,73 +124,21 @@ export default function BasketScreen() {
 				total: order.total,
 			});
 
-			// Store pending order
+			// Store pending order and show mock payment modal
 			setPendingOrder(order);
-
-			// Calculate total for Stripe (in pence)
-			const deliveryCharge = getNextDayDeliveryCharge();
-			const subtotalWithDelivery = total + deliveryCharge;
-			const vatAmount = calculateVat(subtotalWithDelivery);
-			const grandTotal = subtotalWithDelivery + vatAmount;
-			const amountInPence = Math.round(grandTotal * 100);
-
-			// TODO: Create PaymentIntent on backend and get clientSecret
-			// For now, using mock client secret for development
-			const clientSecret = 'pi_mock_client_secret_for_development';
-			console.warn(
-				'[Checkout] Using mock PaymentIntent - replace with backend API call'
-			);
-
-			// Initialize Stripe PaymentSheet
-			const initError = await initializePaymentSheetHelper(
-				initPaymentSheet,
-				clientSecret
-			);
-			if (initError.error) {
-				throw new Error(
-					`Failed to initialize payment: ${
-						initError.error.message || 'Unknown error'
-					}`
-				);
-			}
-
-			// Present Stripe PaymentSheet
-			const paymentResult = await presentPaymentSheetHelper(
-				presentPaymentSheet
-			);
-			if (paymentResult.error) {
-				// User cancelled or payment failed
-				Alert.alert(
-					'Payment Cancelled',
-					paymentResult.error.message || 'Payment was cancelled or failed.',
-					[
-						{
-							text: 'OK',
-							onPress: () => {
-								setPendingOrder(null);
-								setBillingAddress(null);
-							},
-						},
-					]
-				);
-				return;
-			}
-
-			// Payment successful - update order status
-			await handlePaymentSuccess(order.id);
+			setShowPaymentModal(true);
 		} catch (error) {
-			console.error('Error processing payment:', error);
+			console.error('Error processing checkout:', error);
 			Alert.alert(
 				'Error',
 				error instanceof Error
 					? error.message
-					: 'Failed to process payment. Please try again.',
+					: 'Failed to process checkout. Please try again.',
 				[
 					{
 						text: 'OK',
 						onPress: () => {
 							setPendingOrder(null);
-							setBillingAddress(null);
 						},
 					},
 				]
@@ -251,13 +148,33 @@ export default function BasketScreen() {
 		}
 	};
 
-	const handlePaymentSuccess = async (orderId: number) => {
+
+	const handleMockPaymentComplete = async (result: MockPaymentResult) => {
+		if (!pendingOrder) return;
+
+		setShowPaymentModal(false);
+
+		if (result.success) {
+			await handlePaymentSuccess(pendingOrder.id, result.paymentMethod || 'Mock Payment');
+		} else {
+			// Payment cancelled or failed
+			setPendingOrder(null);
+		}
+	};
+
+	const handlePaymentSuccess = async (
+		orderId: number,
+		paymentMethod: string
+	) => {
 		try {
-			// Update order to "processing" status (paid, ready for back office)
+			console.log('[Checkout] Mock payment successful, updating order...');
+
+			// Update order to "on-hold" status (mock payment - needs manual review)
+			// In production, this would be "processing" with set_paid: true
 			const updatedOrder = await updateOrder(orderId, {
-				status: 'processing',
-				set_paid: true,
-				date_paid: new Date().toISOString(),
+				status: 'on-hold', // Use on-hold for mock payments
+				set_paid: false, // Don't mark as paid for mock payments
+				// In production, add: date_paid: new Date().toISOString(),
 			});
 
 			console.log('[Checkout] Order updated to paid:', {
@@ -270,12 +187,12 @@ export default function BasketScreen() {
 
 			// Show success message with order details
 			Alert.alert(
-				'Payment Successful!',
+				'Order Placed Successfully!',
 				`Your order #${
 					updatedOrder.id
 				} has been placed successfully.\n\nTotal: £${parseFloat(
 					updatedOrder.total
-				).toFixed(2)}\n\nYou can view your orders in the Orders section.`,
+				).toFixed(2)}\n\nPayment Method: ${paymentMethod}\n\nNote: This is a mock payment. The order is on hold pending real payment processing.\n\nYou can view your orders in the Orders section.`,
 				[
 					{
 						text: 'View Orders',
@@ -291,7 +208,6 @@ export default function BasketScreen() {
 			);
 
 			setPendingOrder(null);
-			setBillingAddress(null);
 		} catch (error) {
 			console.error('Error updating order:', error);
 			throw error;
@@ -485,40 +401,26 @@ export default function BasketScreen() {
 				</View>
 			</ScrollView>
 
-			{/* Billing Address Form Modal */}
-			<Modal
-				visible={showBillingForm}
-				animationType="slide"
-				onRequestClose={() => {
-					setShowBillingForm(false);
-					setBillingAddress(null);
-				}}
-			>
-				<SafeAreaView
-					style={styles.modalContainer}
-					edges={['top', 'bottom', 'left', 'right']}
-				>
-					<View style={styles.modalHeader}>
-						<Text style={styles.modalTitle}>Billing Address</Text>
-						<TouchableOpacity
-							style={styles.modalCloseButton}
-							onPress={() => {
-								setShowBillingForm(false);
-								setBillingAddress(null);
-							}}
-						>
-							<Ionicons name="close" size={24} color={theme.colors.text} />
-						</TouchableOpacity>
-					</View>
-					<BillingAddressForm
-						onSubmit={handleBillingAddressSubmit}
-						onCancel={() => {
-							setShowBillingForm(false);
-							setBillingAddress(null);
-						}}
-					/>
-				</SafeAreaView>
-			</Modal>
+			{/* Mock Payment Modal */}
+			{pendingOrder && (
+				<MockPaymentModal
+					visible={showPaymentModal}
+					amount={Math.round(
+						(parseFloat(pendingOrder.total) +
+							getNextDayDeliveryCharge() +
+							calculateVat(
+								parseFloat(pendingOrder.total) +
+									getNextDayDeliveryCharge()
+							)) *
+							100
+					)}
+					onPaymentComplete={handleMockPaymentComplete}
+					onCancel={() => {
+						setShowPaymentModal(false);
+						setPendingOrder(null);
+					}}
+				/>
+			)}
 		</SafeAreaView>
 	);
 }
@@ -724,26 +626,5 @@ const styles = StyleSheet.create({
 		color: theme.colors.textSecondary,
 		textAlign: 'center',
 		marginTop: theme.spacing.xs,
-	},
-	modalContainer: {
-		flex: 1,
-		backgroundColor: theme.colors.background,
-	},
-	modalHeader: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		padding: theme.spacing.md,
-		borderBottomWidth: 1,
-		borderBottomColor: theme.colors.border,
-		backgroundColor: theme.colors.surfaceElevated,
-	},
-	modalTitle: {
-		...theme.typography.h2,
-		color: theme.colors.text,
-		fontWeight: '700',
-	},
-	modalCloseButton: {
-		padding: theme.spacing.xs,
 	},
 });
