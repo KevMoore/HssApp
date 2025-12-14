@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { theme } from '../../constants/theme';
 import { useBasketStore } from '../../stores/basketStore';
 import { Button } from '../../components/ui/Button';
@@ -21,16 +22,9 @@ import {
 	calculateVat,
 } from '../../utils/env';
 import {
-	createOrder,
-	updateOrder,
-	WooCommerceOrder,
-	WooCommerceOrderBilling,
-} from '../../services/woocommerceOrdersService';
-import { useRouter } from 'expo-router';
-import {
-	MockPaymentModal,
-	MockPaymentResult,
-} from '../../components/checkout/MockPaymentModal';
+	syncBasketToCart,
+	getCheckoutUrl,
+} from '../../services/woocommerceCartService';
 
 export default function BasketScreen() {
 	const {
@@ -44,11 +38,6 @@ export default function BasketScreen() {
 		clear,
 	} = useBasketStore();
 	const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-	const [pendingOrder, setPendingOrder] = useState<WooCommerceOrder | null>(
-		null
-	);
-	const [showPaymentModal, setShowPaymentModal] = useState(false);
-	const router = useRouter();
 
 	useFocusEffect(
 		useCallback(() => {
@@ -104,29 +93,34 @@ export default function BasketScreen() {
 				);
 			}
 
-			// Calculate total (in pence for consistency)
-			const deliveryCharge = getNextDayDeliveryCharge();
-			const subtotalWithDelivery = total + deliveryCharge;
-			const vatAmount = calculateVat(subtotalWithDelivery);
-			const grandTotal = subtotalWithDelivery + vatAmount;
-			const amountInPence = Math.round(grandTotal * 100);
-
-			console.log('[Checkout] Creating order in WooCommerce...', {
+			console.log('[Checkout] Syncing basket to WooCommerce cart...', {
 				itemCount: items.length,
 			});
 
-			// Create order in WooCommerce with "pending payment" status
-			const order = await createOrder(items);
+			// Sync local basket to WooCommerce cart
+			const cart = await syncBasketToCart(items);
 
-			console.log('[Checkout] Order created:', {
-				orderId: order.id,
-				status: order.status,
-				total: order.total,
+			console.log('[Checkout] Basket synced to cart:', {
+				cartItemCount: cart.items.length,
+				totalPrice: cart.totals.total_price,
 			});
 
-			// Store pending order and show mock payment modal
-			setPendingOrder(order);
-			setShowPaymentModal(true);
+			// Clear local basket after successful sync
+			await clear();
+
+			console.log('[Checkout] Local basket cleared');
+
+			// Get checkout bridge URL with cart token and open it
+			// The checkout bridge will transfer the cart to web session and redirect to checkout
+			const checkoutUrl = await getCheckoutUrl();
+			console.log('[Checkout] Opening checkout bridge URL:', checkoutUrl);
+
+			const supported = await Linking.canOpenURL(checkoutUrl);
+			if (supported) {
+				await Linking.openURL(checkoutUrl);
+			} else {
+				throw new Error(`Cannot open checkout URL: ${checkoutUrl}`);
+			}
 		} catch (error) {
 			console.error('Error processing checkout:', error);
 			Alert.alert(
@@ -137,80 +131,11 @@ export default function BasketScreen() {
 				[
 					{
 						text: 'OK',
-						onPress: () => {
-							setPendingOrder(null);
-						},
 					},
 				]
 			);
 		} finally {
 			setIsProcessingCheckout(false);
-		}
-	};
-
-
-	const handleMockPaymentComplete = async (result: MockPaymentResult) => {
-		if (!pendingOrder) return;
-
-		setShowPaymentModal(false);
-
-		if (result.success) {
-			await handlePaymentSuccess(pendingOrder.id, result.paymentMethod || 'Mock Payment');
-		} else {
-			// Payment cancelled or failed
-			setPendingOrder(null);
-		}
-	};
-
-	const handlePaymentSuccess = async (
-		orderId: number,
-		paymentMethod: string
-	) => {
-		try {
-			console.log('[Checkout] Mock payment successful, updating order...');
-
-			// Update order to "on-hold" status (mock payment - needs manual review)
-			// In production, this would be "processing" with set_paid: true
-			const updatedOrder = await updateOrder(orderId, {
-				status: 'on-hold', // Use on-hold for mock payments
-				set_paid: false, // Don't mark as paid for mock payments
-				// In production, add: date_paid: new Date().toISOString(),
-			});
-
-			console.log('[Checkout] Order updated to paid:', {
-				orderId: updatedOrder.id,
-				status: updatedOrder.status,
-			});
-
-			// Clear the basket
-			await clear();
-
-			// Show success message with order details
-			Alert.alert(
-				'Order Placed Successfully!',
-				`Your order #${
-					updatedOrder.id
-				} has been placed successfully.\n\nTotal: £${parseFloat(
-					updatedOrder.total
-				).toFixed(2)}\n\nPayment Method: ${paymentMethod}\n\nNote: This is a mock payment. The order is on hold pending real payment processing.\n\nYou can view your orders in the Orders section.`,
-				[
-					{
-						text: 'View Orders',
-						onPress: () => {
-							router.push('/(tabs)/orders');
-						},
-					},
-					{
-						text: 'OK',
-						style: 'default',
-					},
-				]
-			);
-
-			setPendingOrder(null);
-		} catch (error) {
-			console.error('Error updating order:', error);
-			throw error;
 		}
 	};
 
@@ -400,27 +325,6 @@ export default function BasketScreen() {
 					</Text>
 				</View>
 			</ScrollView>
-
-			{/* Mock Payment Modal */}
-			{pendingOrder && (
-				<MockPaymentModal
-					visible={showPaymentModal}
-					amount={Math.round(
-						(parseFloat(pendingOrder.total) +
-							getNextDayDeliveryCharge() +
-							calculateVat(
-								parseFloat(pendingOrder.total) +
-									getNextDayDeliveryCharge()
-							)) *
-							100
-					)}
-					onPaymentComplete={handleMockPaymentComplete}
-					onCancel={() => {
-						setShowPaymentModal(false);
-						setPendingOrder(null);
-					}}
-				/>
-			)}
 		</SafeAreaView>
 	);
 }
