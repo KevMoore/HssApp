@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Part } from '../types';
 import { PartCard } from '../components/parts/PartCard';
 import { SearchBar } from '../components/ui/SearchBar';
+import { NoResultsModal } from '../components/ui/NoResultsModal';
 import { theme } from '../constants/theme';
 import { searchParts } from '../services/partsService';
 import { saveSearchTerm } from '../services/searchHistoryService';
@@ -26,10 +27,12 @@ export default function SearchScreen() {
 	const [loading, setLoading] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [showNoResultsModal, setShowNoResultsModal] = useState(false);
 
 	const performSearch = useCallback(async (query: string) => {
 		if (!query.trim()) {
 			setParts([]);
+			setShowNoResultsModal(false);
 			return;
 		}
 
@@ -42,9 +45,16 @@ export default function SearchScreen() {
 				filters: {},
 			});
 			setParts(results);
+			// Show modal if no results found and we have a search query
+			if (results.length === 0 && query.trim()) {
+				setShowNoResultsModal(true);
+			} else {
+				setShowNoResultsModal(false);
+			}
 		} catch (err) {
 			setError('Failed to search parts. Please try again.');
 			console.error('Search error:', err);
+			setShowNoResultsModal(false);
 		} finally {
 			setLoading(false);
 		}
@@ -119,6 +129,11 @@ export default function SearchScreen() {
 			);
 		}
 
+		// Don't show empty state text when modal will be shown
+		if (showNoResultsModal) {
+			return null;
+		}
+
 		return (
 			<View style={styles.emptyState}>
 				<Text style={styles.emptyStateText}>No parts found</Text>
@@ -135,10 +150,17 @@ export default function SearchScreen() {
 				<View style={styles.searchBarWrapper}>
 					<SearchBar
 						value={searchQuery}
-						onChangeText={setSearchQuery}
+						onChangeText={(text) => {
+							setSearchQuery(text);
+							// Hide modal when user starts typing
+							if (showNoResultsModal) {
+								setShowNoResultsModal(false);
+							}
+						}}
 						onClear={() => {
 							setSearchQuery('');
 							setParts([]);
+							setShowNoResultsModal(false);
 						}}
 						placeholder="Search parts..."
 						onSubmitEditing={handleSearch}
@@ -206,6 +228,17 @@ export default function SearchScreen() {
 					showsVerticalScrollIndicator={false}
 				/>
 			</View>
+
+			{/* No Results Modal */}
+			<NoResultsModal
+				isVisible={showNoResultsModal}
+				searchQuery={searchQuery.trim() || params.q || ''}
+				onDismiss={() => setShowNoResultsModal(false)}
+				onTryAgain={() => {
+					// Focus search bar or trigger search again
+					handleSearch();
+				}}
+			/>
 		</SafeAreaView>
 	);
 }

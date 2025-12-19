@@ -8,6 +8,7 @@ import {
 	ActivityIndicator,
 	TouchableOpacity,
 	Alert,
+	Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,7 @@ import { theme } from '../../constants/theme';
 import { Button } from '../../components/ui/Button';
 import { openPartPage } from '../../utils/linking';
 import { useBasketStore } from '../../stores/basketStore';
+import { getCachedCategoryImage } from '../../services/categoryImageCache';
 
 export default function ProductDetailsScreen() {
 	const params = useLocalSearchParams<{ id: string }>();
@@ -28,8 +30,27 @@ export default function ProductDetailsScreen() {
 	const [quantity, setQuantity] = useState(1);
 	const [compatibilityExpanded, setCompatibilityExpanded] = useState(true);
 	const [isAdding, setIsAdding] = useState(false);
+	const [categoryImageUri, setCategoryImageUri] = useState<string | null>(null);
 	const addItem = useBasketStore((state) => state.addItem);
 	const refreshCount = useBasketStore((state) => state.refreshCount);
+
+	// Load category image as fallback if product has no image
+	useEffect(() => {
+		const loadCategoryImage = async () => {
+			if (part && !part.imageUrl && part.categoryId) {
+				const cachedPath = await getCachedCategoryImage(part.categoryId);
+				if (cachedPath) {
+					setCategoryImageUri(cachedPath);
+				} else {
+					setCategoryImageUri(null);
+				}
+			} else {
+				setCategoryImageUri(null);
+			}
+		};
+
+		loadCategoryImage();
+	}, [part?.imageUrl, part?.categoryId]);
 
 	useEffect(() => {
 		const loadPart = async () => {
@@ -150,37 +171,100 @@ export default function ProductDetailsScreen() {
 				contentContainerStyle={styles.scrollContent}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Product Image */}
-				<View style={styles.imageContainer}>
-					{part.imageUrl ? (
-						<Image
-							source={{ uri: part.imageUrl }}
-							style={styles.image}
-							resizeMode="contain"
-							onError={(error) => {
-								console.error('[ProductDetails] Image load error:', {
-									partId: part.id,
-									partNumber: part.partNumber,
-									imageUrl: part.imageUrl,
-									error,
-								});
-							}}
-							onLoad={() => {
-								console.log('[ProductDetails] Image loaded successfully:', {
-									partId: part.id,
-									partNumber: part.partNumber,
-									imageUrl: part.imageUrl,
-								});
-							}}
-						/>
-					) : (
-						<View style={styles.imagePlaceholder}>
-							<Ionicons
-								name="image-outline"
-								size={64}
-								color={theme.colors.textLight}
+				{/* Product Images */}
+				<View style={styles.imagesContainer}>
+					{part.imageUrls && part.imageUrls.length > 0 ? (
+						<ScrollView
+							horizontal
+							pagingEnabled
+							showsHorizontalScrollIndicator={true}
+							style={styles.imagesScrollView}
+							contentContainerStyle={styles.imagesScrollContent}
+						>
+							{part.imageUrls.map((imageUrl, index) => (
+								<View key={index} style={styles.imageContainer}>
+									<Image
+										source={{ uri: imageUrl }}
+										style={styles.image}
+										resizeMode="contain"
+										onError={(error) => {
+											console.error('[ProductDetails] Image load error:', {
+												partId: part.id,
+												partNumber: part.partNumber,
+												imageUrl,
+												index,
+												error,
+											});
+										}}
+										onLoad={() => {
+											console.log('[ProductDetails] Image loaded successfully:', {
+												partId: part.id,
+												partNumber: part.partNumber,
+												imageUrl,
+												index,
+											});
+										}}
+									/>
+								</View>
+							))}
+						</ScrollView>
+					) : part.imageUrl ? (
+						<View style={styles.imageContainer}>
+							<Image
+								source={{ uri: part.imageUrl }}
+								style={styles.image}
+								resizeMode="contain"
+								onError={(error) => {
+									console.error('[ProductDetails] Image load error:', {
+										partId: part.id,
+										partNumber: part.partNumber,
+										imageUrl: part.imageUrl,
+										error,
+									});
+								}}
+								onLoad={() => {
+									console.log('[ProductDetails] Image loaded successfully:', {
+										partId: part.id,
+										partNumber: part.partNumber,
+										imageUrl: part.imageUrl,
+									});
+								}}
 							/>
-							<Text style={styles.imagePlaceholderText}>No Image Available</Text>
+						</View>
+					) : categoryImageUri ? (
+						<View style={styles.imageContainer}>
+							<Image
+								source={{ uri: categoryImageUri }}
+								style={styles.image}
+								resizeMode="contain"
+								onError={(error) => {
+									console.error('[ProductDetails] Category image load error:', {
+										partId: part.id,
+										categoryId: part.categoryId,
+										categoryImageUri,
+										error,
+									});
+									setCategoryImageUri(null);
+								}}
+								onLoad={() => {
+									console.log('[ProductDetails] Category image loaded successfully:', {
+										partId: part.id,
+										categoryId: part.categoryId,
+										categoryImageUri,
+									});
+								}}
+							/>
+						</View>
+					) : (
+						<View style={styles.imageContainer}>
+							<View style={styles.imagePlaceholder}>
+								<Ionicons
+									name="image-outline"
+									size={64}
+									color={theme.colors.textLight}
+								/>
+								<Text style={styles.imagePlaceholderText}>No Image Available</Text>
+							</View>
 						</View>
 					)}
 				</View>
@@ -206,6 +290,29 @@ export default function ProductDetailsScreen() {
 
 					{/* Part Number */}
 					<Text style={styles.partNumber}>{part.partNumber}</Text>
+
+					{/* GC Codes */}
+					{part.gcNumbers && part.gcNumbers.length > 0 ? (
+						<View style={styles.gcCodesContainer}>
+							<Text style={styles.gcCodesLabel}>GC Codes:</Text>
+							<View style={styles.gcCodesList}>
+								{part.gcNumbers.map((gc, index) => (
+									<View key={index} style={styles.gcCodeBadge}>
+										<Text style={styles.gcCodeText}>{gc}</Text>
+									</View>
+								))}
+							</View>
+						</View>
+					) : part.gcNumber ? (
+						<View style={styles.gcCodesContainer}>
+							<Text style={styles.gcCodesLabel}>GC Code:</Text>
+							<View style={styles.gcCodesList}>
+								<View style={styles.gcCodeBadge}>
+									<Text style={styles.gcCodeText}>{part.gcNumber}</Text>
+								</View>
+							</View>
+						</View>
+					) : null}
 
 					{/* Product Name */}
 					<Text style={styles.productName}>{part.name}</Text>
@@ -401,12 +508,24 @@ const styles = StyleSheet.create({
 	scrollContent: {
 		paddingBottom: theme.spacing.xl,
 	},
-	imageContainer: {
+	imagesContainer: {
 		width: '100%',
 		height: 300,
-		backgroundColor: theme.colors.surface,
 		marginBottom: theme.spacing.md,
+	},
+	imagesScrollView: {
+		flex: 1,
+	},
+	imagesScrollContent: {
+		alignItems: 'center',
+	},
+	imageContainer: {
+		width: Dimensions.get('window').width,
+		height: 300,
+		backgroundColor: theme.colors.surface,
 		padding: theme.spacing.md,
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 	image: {
 		width: '100%',
@@ -639,5 +758,32 @@ const styles = StyleSheet.create({
 		...theme.typography.bodySmall,
 		color: theme.colors.textSecondary,
 		lineHeight: 22,
+	},
+	gcCodesContainer: {
+		marginBottom: theme.spacing.md,
+	},
+	gcCodesLabel: {
+		...theme.typography.bodySmall,
+		color: theme.colors.textSecondary,
+		fontWeight: '600',
+		marginBottom: theme.spacing.xs,
+	},
+	gcCodesList: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: theme.spacing.xs,
+	},
+	gcCodeBadge: {
+		backgroundColor: theme.colors.surface,
+		paddingHorizontal: theme.spacing.sm,
+		paddingVertical: theme.spacing.xs,
+		borderRadius: theme.borderRadius.sm,
+		borderWidth: 1,
+		borderColor: theme.colors.border,
+	},
+	gcCodeText: {
+		...theme.typography.bodySmall,
+		color: theme.colors.primary,
+		fontWeight: '600',
 	},
 });

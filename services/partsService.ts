@@ -42,7 +42,7 @@ function calculateRelevanceScore(part: Part, queryLower: string): number {
 		score += WEIGHTS.partNumber * (1 - position / partNumberLower.length) * 0.5;
 	}
 
-	// Check gcNumber
+	// Check gcNumber (for backward compatibility)
 	if (part.gcNumber) {
 		const gcNumberLower = part.gcNumber.toLowerCase();
 		if (gcNumberLower === queryLower) {
@@ -54,6 +54,22 @@ function calculateRelevanceScore(part: Part, queryLower: string): number {
 			const position = gcNumberLower.indexOf(queryLower);
 			score += WEIGHTS.gcNumber * (1 - position / gcNumberLower.length) * 0.5;
 		}
+	}
+
+	// Check gcNumbers array (from meta_data)
+	if (part.gcNumbers && part.gcNumbers.length > 0) {
+		part.gcNumbers.forEach((gcNum) => {
+			const gcNumberLower = gcNum.toLowerCase();
+			if (gcNumberLower === queryLower) {
+				score += WEIGHTS.gcNumber * EXACT_MATCH;
+			} else if (gcNumberLower.startsWith(queryLower)) {
+				score += WEIGHTS.gcNumber * STARTS_WITH;
+			} else if (gcNumberLower.includes(queryLower)) {
+				score += WEIGHTS.gcNumber * CONTAINS;
+				const position = gcNumberLower.indexOf(queryLower);
+				score += WEIGHTS.gcNumber * (1 - position / gcNumberLower.length) * 0.5;
+			}
+		});
 	}
 
 	// Check name
@@ -118,21 +134,13 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 		};
 
 		// Always use search with search_fields to search across all relevant fields
-		// This ensures comprehensive search results including SKU, name, descriptions, etc.
+		// WooCommerce searches: name, SKU, description, short_description
+		// Note: WooCommerce doesn't search meta_data fields directly, so we'll do client-side
+		// filtering after mapping to Parts to also match GC codes and part numbers from meta_data
 		apiParams.search = query;
-		apiParams.search_fields = ['name', 'sku', 'global_unique_id', 'description', 'short_description'];
+		apiParams.search_fields = ['name', 'sku', 'description', 'short_description'];
 		
-		// Check if query looks like a SKU (alphanumeric, possibly with dashes)
-		const skuPattern = /^[A-Z0-9\-]+$/i;
-		if (skuPattern.test(queryLower)) {
-			// For SKU-like queries, also use exact SKU match as a fallback
-			// Note: WooCommerce will search in SKU field via search_fields, but exact SKU match
-			// can be more precise. However, using both might be too restrictive, so we'll
-			// rely on search_fields which includes 'sku'
-			console.log('[Search] SKU-like query - searching in all fields including SKU:', query);
-		} else {
-			console.log('[Search] Text query - searching in all fields:', query);
-		}
+		console.log('[Search] Searching in WooCommerce fields (name, SKU, description, short_description):', query);
 
 		// Apply stock filter if requested
 		if (filters?.inStockOnly) {
@@ -160,6 +168,7 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 				id: parts[0].id,
 				name: parts[0].name,
 				partNumber: parts[0].partNumber,
+				gcNumbers: parts[0].gcNumbers,
 			} : null,
 		});
 
@@ -171,6 +180,11 @@ export async function searchParts(params: SearchParams): Promise<Part[]> {
 		if (filters?.category) {
 			parts = parts.filter((part) => part.category === filters.category);
 		}
+
+		// Note: WooCommerce search already matches name, SKU, description, short_description
+		// The products returned have already matched the search query in those fields.
+		// The relevance scoring below will properly rank results based on GC codes and part numbers
+		// from meta_data, giving higher scores to exact matches in those fields.
 
 		// Calculate relevance scores and sort
 		const scoredParts = parts
@@ -444,7 +458,17 @@ export async function getPartSuggestions(
 				suggestions.add(part.manufacturer);
 			}
 
-			// Check GC number if exists
+			// Check GC numbers from meta_data
+			if (part.gcNumbers && part.gcNumbers.length > 0) {
+				for (const gcNum of part.gcNumbers) {
+					const gcLower = gcNum.toLowerCase();
+					if (gcLower.startsWith(queryLower) || gcLower.includes(queryLower)) {
+						suggestions.add(gcNum);
+					}
+				}
+			}
+
+			// Check single GC number (backward compatibility)
 			if (part.gcNumber) {
 				const gcLower = part.gcNumber.toLowerCase();
 				if (gcLower.startsWith(queryLower) || gcLower.includes(queryLower)) {

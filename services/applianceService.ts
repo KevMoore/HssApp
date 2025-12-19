@@ -5,6 +5,7 @@
  */
 
 import { listCategories, WooCommerceCategory } from './woocommerceService';
+import { getCachedCategoryImage } from './categoryImageCache';
 
 export interface Appliance {
 	id: string;
@@ -21,15 +22,32 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 /**
  * Map WooCommerce category to Appliance interface
  */
-function mapCategoryToAppliance(category: WooCommerceCategory): Appliance {
-	const imageUrl = category.image?.src || getDefaultImageUrl(category.slug);
+async function mapCategoryToAppliance(category: WooCommerceCategory): Promise<Appliance> {
+	// Try to get cached category image first
+	let imageUrl: string | null = null;
+	
+	if (category.image?.src) {
+		// Try cached image first
+		const cachedPath = await getCachedCategoryImage(category.id);
+		if (cachedPath) {
+			imageUrl = cachedPath;
+		} else {
+			// Fallback to remote URL if not cached yet
+			imageUrl = category.image.src;
+		}
+	}
+	
+	// Use default placeholder if no image available
+	if (!imageUrl) {
+		imageUrl = getDefaultImageUrl(category.slug);
+	}
 	
 	console.log('[Appliances] Mapping category:', {
 		categoryId: category.id,
 		categoryName: category.name,
 		hasImage: !!category.image,
-		imageObject: category.image,
 		imageSrc: category.image?.src,
+		cachedImage: imageUrl?.startsWith('file://') || imageUrl?.startsWith('/'),
 		finalImageUrl: imageUrl,
 	});
 
@@ -84,8 +102,8 @@ export async function getAllAppliances(): Promise<Appliance[]> {
 			})),
 		});
 
-		// Map categories to appliances
-		cachedAppliances = categories.map(mapCategoryToAppliance);
+		// Map categories to appliances (with async image loading)
+		cachedAppliances = await Promise.all(categories.map(mapCategoryToAppliance));
 		
 		console.log('[Appliances] Mapped to appliances:', {
 			count: cachedAppliances.length,

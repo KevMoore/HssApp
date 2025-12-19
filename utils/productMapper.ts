@@ -8,26 +8,82 @@ import { WooCommerceProduct } from '../services/woocommerceService';
 import { stripHtmlTags } from './htmlUtils';
 
 /**
+ * Helper function to parse PHP serialized array format or JSON array
+ * Handles format like: {i:0;s:9:"4153216 ";i:1;s:9:"4153219 ";}
+ * or JSON array: ["4153216", "4153219"]
+ */
+function parseGcCodes(value: unknown): string[] {
+	if (!value) return [];
+	
+	// Handle array directly
+	if (Array.isArray(value)) {
+		return value.map(String).filter(v => v.trim());
+	}
+	
+	// Handle string
+	if (typeof value !== 'string') {
+		return [];
+	}
+	
+	const str = value.trim();
+	if (!str) return [];
+	
+	// Try to parse as JSON first
+	try {
+		const parsed = JSON.parse(str);
+		if (Array.isArray(parsed)) {
+			return parsed.map(String).filter(v => v.trim());
+		}
+	} catch {
+		// Not JSON, continue to PHP serialized format
+	}
+	
+	// Parse PHP serialized array format: {i:0;s:9:"value1";i:1;s:9:"value2";}
+	const values: string[] = [];
+	const regex = /i:\d+;s:\d+:"([^"]+)";/g;
+	let match;
+	while ((match = regex.exec(str)) !== null) {
+		values.push(match[1].trim());
+	}
+	
+	// If no matches found and it's a simple string, return as single value
+	if (values.length === 0 && str) {
+		return [str];
+	}
+	
+	return values.filter(v => v);
+}
+
+/**
+ * Helper function to get meta field value from meta_data array
+ */
+function getMetaFieldValue(
+	metaData: Array<{ id?: number; key: string; value: string | number | boolean | object | null }>,
+	key: string
+): unknown {
+	const metaItem = metaData.find(m => m.key === key);
+	return metaItem?.value ?? null;
+}
+
+/**
  * Map WooCommerce product to Part interface
  */
 export function mapWooCommerceProductToPart(product: WooCommerceProduct): Part {
-	// Extract first image URL with better error handling and logging
-	let imageUrl: string | undefined = undefined;
-
-	if (
-		product.images &&
-		Array.isArray(product.images) &&
-		product.images.length > 0
-	) {
-		const firstImage = product.images[0];
-		if (firstImage && firstImage.src) {
-			const src = firstImage.src.trim();
-			// Only set imageUrl if it's a non-empty string
-			if (src && src.length > 0) {
-				imageUrl = src;
+	// Extract all image URLs
+	const imageUrls: string[] = [];
+	if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+		product.images.forEach((img) => {
+			if (img && img.src) {
+				const src = img.src.trim();
+				if (src && src.length > 0) {
+					imageUrls.push(src);
+				}
 			}
-		}
+		});
 	}
+	
+	// First image URL (for backward compatibility)
+	const imageUrl = imageUrls.length > 0 ? imageUrls[0] : undefined;
 
 	// Log image extraction for debugging
 	if (!imageUrl) {
@@ -36,20 +92,17 @@ export function mapWooCommerceProductToPart(product: WooCommerceProduct): Part {
 			name: product.name,
 			hasImages: !!product.images,
 			imagesLength: product.images?.length || 0,
-			imagesArray: product.images,
-		});
-	} else {
-		console.log('[ProductMapper] Image extracted for product:', {
-			id: product.id,
-			name: product.name,
-			imageUrl,
 		});
 	}
 
-	// Extract category name (use first category)
+	// Extract category name and ID (use first category)
 	const category =
 		product.categories && product.categories.length > 0
 			? product.categories[0].name
+			: undefined;
+	const categoryId =
+		product.categories && product.categories.length > 0
+			? product.categories[0].id
 			: undefined;
 
 	// Extract manufacturer from categories or tags
@@ -79,15 +132,41 @@ export function mapWooCommerceProductToPart(product: WooCommerceProduct): Part {
 		? parseFloat(product.regular_price)
 		: undefined;
 
-	// Extract GC number from SKU or meta data if available
-	// This might need to be adjusted based on your actual data structure
-	let gcNumber: string | undefined;
-	if (product.sku) {
-		// Check if SKU contains GC pattern
+	// Extract GC codes from meta_data
+	let gcNumbers: string[] = [];
+	let gcNumber: string | undefined; // For backward compatibility
+	
+	if (product.meta_data && Array.isArray(product.meta_data)) {
+		const gcCodeValue = getMetaFieldValue(product.meta_data, 'gc_code');
+		if (gcCodeValue) {
+			gcNumbers = parseGcCodes(gcCodeValue);
+			// Set first GC code for backward compatibility
+			if (gcNumbers.length > 0) {
+				gcNumber = gcNumbers[0];
+			}
+		}
+	}
+	
+	// Fallback: Extract GC number from SKU if not found in meta_data
+	if (gcNumbers.length === 0 && product.sku) {
 		const gcMatch = product.sku.match(/GC[- ]?(\d+)/i);
 		if (gcMatch) {
 			gcNumber = gcMatch[1];
+			gcNumbers = [gcNumber];
 		}
+	}
+
+	// Extract part number from meta_data (preferred) or use SKU as fallback
+	let partNumber: string;
+	if (product.meta_data && Array.isArray(product.meta_data)) {
+		const partNumberValue = getMetaFieldValue(product.meta_data, 'part_number');
+		if (partNumberValue && typeof partNumberValue === 'string' && partNumberValue.trim()) {
+			partNumber = partNumberValue.trim();
+		} else {
+			partNumber = product.sku || String(product.id);
+		}
+	} else {
+		partNumber = product.sku || String(product.id);
 	}
 
 	// Extract compatible appliances from tags or attributes
@@ -110,15 +189,18 @@ export function mapWooCommerceProductToPart(product: WooCommerceProduct): Part {
 
 	return {
 		id: String(product.id),
-		partNumber: product.sku || String(product.id),
-		gcNumber,
+		partNumber,
+		gcNumber, // For backward compatibility
+		gcNumbers: gcNumbers.length > 0 ? gcNumbers : undefined,
 		name: product.name,
 		description: cleanDescription || undefined,
 		manufacturer,
 		category,
+		categoryId,
 		price,
 		inStock,
-		imageUrl,
+		imageUrl, // For backward compatibility
+		imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
 		compatibleWith: compatibleWith.length > 0 ? compatibleWith : undefined,
 	};
 }

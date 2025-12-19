@@ -258,73 +258,77 @@ export default function BasketScreen() {
 
 	return (
 		<SafeAreaView style={styles.container} edges={['top']}>
-			<ScrollView
-				style={styles.scrollView}
-				contentContainerStyle={styles.scrollContent}
-				showsVerticalScrollIndicator={false}
-			>
-				<View style={styles.header}>
-					<Text style={styles.title}>Shopping Basket</Text>
-					<Text style={styles.subtitle}>
-						{itemCount} {itemCount === 1 ? 'item' : 'items'}
-					</Text>
-				</View>
-
-				<View style={styles.itemsContainer}>
-					{items.map((item) => renderBasketItem({ item }))}
-				</View>
-
-				<View style={styles.footer}>
-					<View style={styles.summary}>
-						<View style={styles.summaryRow}>
-							<Text style={styles.summaryLabel}>Subtotal</Text>
-							<Text style={styles.summaryValue}>
-								{total > 0 ? `£${total.toFixed(2)}` : '—'}
-							</Text>
-						</View>
-						{total > 0 && (
-							<>
-								<View style={styles.summaryRow}>
-									<Text style={styles.summaryLabel}>Next Day Delivery</Text>
-									<Text style={styles.summaryValue}>
-										£{deliveryCharge.toFixed(2)}
-									</Text>
-								</View>
-								<View style={styles.summaryRow}>
-									<Text style={styles.summaryLabel}>VAT ({vatRate}%)</Text>
-									<Text style={styles.summaryValue}>
-										£{vatAmount.toFixed(2)}
-									</Text>
-								</View>
-							</>
-						)}
-						<View style={styles.summaryRow}>
-							<Text style={styles.summaryLabel}>Items</Text>
-							<Text style={styles.summaryValue}>{itemCount}</Text>
-						</View>
-						<View style={styles.totalRow}>
-							<Text style={styles.totalLabel}>Total</Text>
-							<Text style={styles.totalValue}>
-								{total > 0 ? `£${grandTotal.toFixed(2)}` : '—'}
-							</Text>
-						</View>
+			<View style={styles.contentWrapper}>
+				<ScrollView
+					style={styles.scrollView}
+					contentContainerStyle={styles.scrollContent}
+					showsVerticalScrollIndicator={false}
+				>
+					<View style={styles.header}>
+						<Text style={styles.title}>Shopping Basket</Text>
+						<Text style={styles.subtitle}>
+							{itemCount} {itemCount === 1 ? 'item' : 'items'}
+						</Text>
 					</View>
 
-					<Button
-						title={isProcessingCheckout ? 'Processing...' : 'Checkout'}
-						onPress={handleCheckout}
-						variant="primary"
-						size="large"
-						style={styles.checkoutButton}
-						disabled={isProcessingCheckout}
-						loading={isProcessingCheckout}
-					/>
+					<View style={styles.itemsContainer}>
+						{items.map((item) => renderBasketItem({ item }))}
+					</View>
+				</ScrollView>
 
-					<Text style={styles.checkoutNote}>
-						Prices include VAT and next day delivery charge.
-					</Text>
-				</View>
-			</ScrollView>
+				<SafeAreaView style={styles.footerContainer} edges={['bottom']}>
+					<View style={styles.footer}>
+						<View style={styles.summary}>
+							<View style={styles.summaryRow}>
+								<Text style={styles.summaryLabel}>Subtotal</Text>
+								<Text style={styles.summaryValue}>
+									{total > 0 ? `£${total.toFixed(2)}` : '—'}
+								</Text>
+							</View>
+							{total > 0 && (
+								<>
+									<View style={styles.summaryRow}>
+										<Text style={styles.summaryLabel}>Next Day Delivery</Text>
+										<Text style={styles.summaryValue}>
+											£{deliveryCharge.toFixed(2)}
+										</Text>
+									</View>
+									<View style={styles.summaryRow}>
+										<Text style={styles.summaryLabel}>VAT ({vatRate}%)</Text>
+										<Text style={styles.summaryValue}>
+											£{vatAmount.toFixed(2)}
+										</Text>
+									</View>
+								</>
+							)}
+							<View style={styles.summaryRow}>
+								<Text style={styles.summaryLabel}>Items</Text>
+								<Text style={styles.summaryValue}>{itemCount}</Text>
+							</View>
+							<View style={styles.totalRow}>
+								<Text style={styles.totalLabel}>Total</Text>
+								<Text style={styles.totalValue}>
+									{total > 0 ? `£${grandTotal.toFixed(2)}` : '—'}
+								</Text>
+							</View>
+						</View>
+
+						<Button
+							title={isProcessingCheckout ? 'Processing...' : 'Checkout'}
+							onPress={handleCheckout}
+							variant="primary"
+							size="large"
+							style={styles.checkoutButton}
+							disabled={isProcessingCheckout}
+							loading={isProcessingCheckout}
+						/>
+
+						<Text style={styles.checkoutNote}>
+							Prices include VAT and next day delivery charge.
+						</Text>
+					</View>
+				</SafeAreaView>
+			</View>
 		</SafeAreaView>
 	);
 }
@@ -333,6 +337,9 @@ const styles = StyleSheet.create({
 	container: {
 		flex: 1,
 		backgroundColor: theme.colors.background,
+	},
+	contentWrapper: {
+		flex: 1,
 	},
 	loadingContainer: {
 		flex: 1,
@@ -478,28 +485,32 @@ const styles = StyleSheet.create({
 		color: theme.colors.textSecondary,
 		fontStyle: 'italic',
 	},
-	footer: {
+	footerContainer: {
 		backgroundColor: theme.colors.surfaceElevated,
 		borderTopWidth: 1,
 		borderTopColor: theme.colors.border,
-		padding: theme.spacing.md,
 		...theme.shadows.lg,
 	},
+	footer: {
+		paddingHorizontal: theme.spacing.md,
+		paddingTop: theme.spacing.sm,
+		paddingBottom: theme.spacing.md,
+	},
 	summary: {
-		marginBottom: theme.spacing.md,
+		marginBottom: theme.spacing.sm,
 	},
 	summaryRow: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		marginBottom: theme.spacing.sm,
+		marginBottom: theme.spacing.xs,
 	},
 	summaryLabel: {
-		...theme.typography.body,
+		...theme.typography.bodySmall,
 		color: theme.colors.textSecondary,
 	},
 	summaryValue: {
-		...theme.typography.body,
+		...theme.typography.bodySmall,
 		fontWeight: '600',
 		color: theme.colors.text,
 	},
@@ -507,28 +518,29 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		marginTop: theme.spacing.sm,
-		paddingTop: theme.spacing.md,
+		marginTop: theme.spacing.xs,
+		paddingTop: theme.spacing.sm,
 		borderTopWidth: 1,
 		borderTopColor: theme.colors.border,
 	},
 	totalLabel: {
-		...theme.typography.h3,
+		...theme.typography.body,
 		color: theme.colors.text,
 		fontWeight: '700',
 	},
 	totalValue: {
-		...theme.typography.h2,
+		...theme.typography.h3,
 		color: theme.colors.primary,
 		fontWeight: '700',
 	},
 	checkoutButton: {
-		marginBottom: theme.spacing.sm,
+		marginTop: theme.spacing.sm,
+		marginBottom: theme.spacing.xs,
 	},
 	checkoutNote: {
 		...theme.typography.caption,
 		color: theme.colors.textSecondary,
 		textAlign: 'center',
-		marginTop: theme.spacing.xs,
+		marginTop: theme.spacing.xs / 2,
 	},
 });

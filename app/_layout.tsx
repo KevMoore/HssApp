@@ -11,6 +11,7 @@ import { useOnboarding } from '../hooks/useOnboarding';
 import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '../services/notificationService';
 import { AppState, AppStateStatus } from 'react-native';
+import { initializeCategoryImageCache } from '../services/categoryImageCache';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -76,6 +77,21 @@ function RootLayoutContent() {
 		};
 
 		registerNotifications();
+	}, []);
+
+	// Initialize category image cache on app start
+	useEffect(() => {
+		const initializeCache = async () => {
+			try {
+				console.log('[App] Initializing category image cache...');
+				await initializeCategoryImageCache();
+				console.log('[App] Category image cache initialized');
+			} catch (error) {
+				console.error('[App] Error initializing category image cache:', error);
+			}
+		};
+
+		initializeCache();
 	}, []);
 
 	// Handle app state changes to re-register token if needed

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
 	View,
 	Text,
@@ -13,6 +13,7 @@ import { Part } from '../../types';
 import { theme } from '../../constants/theme';
 import { Button } from '../ui/Button';
 import { useBasketStore } from '../../stores/basketStore';
+import { getCachedCategoryImage } from '../../services/categoryImageCache';
 
 interface PartCardProps {
 	part: Part;
@@ -22,8 +23,25 @@ interface PartCardProps {
 export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 	const router = useRouter();
 	const [isAdding, setIsAdding] = useState(false);
+	const [categoryImageUri, setCategoryImageUri] = useState<string | null>(null);
 	const addItem = useBasketStore((state) => state.addItem);
 	const refreshCount = useBasketStore((state) => state.refreshCount);
+
+	// Load category image as fallback if product has no image
+	useEffect(() => {
+		const loadCategoryImage = async () => {
+			if (!part.imageUrl && part.categoryId) {
+				const cachedPath = await getCachedCategoryImage(part.categoryId);
+				if (cachedPath) {
+					setCategoryImageUri(cachedPath);
+				}
+			} else {
+				setCategoryImageUri(null);
+			}
+		};
+
+		loadCategoryImage();
+	}, [part.imageUrl, part.categoryId]);
 
 	const handleViewDetails = (e: any) => {
 		e?.stopPropagation?.();
@@ -98,6 +116,28 @@ export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 						});
 					}}
 				/>
+			) : categoryImageUri ? (
+				<Image
+					source={{ uri: categoryImageUri }}
+					style={styles.image}
+					resizeMode="cover"
+					onError={(error) => {
+						console.error('[PartCard] Category image load error:', {
+							partId: part.id,
+							categoryId: part.categoryId,
+							categoryImageUri,
+							error,
+						});
+						setCategoryImageUri(null);
+					}}
+					onLoad={() => {
+						console.log('[PartCard] Category image loaded successfully:', {
+							partId: part.id,
+							categoryId: part.categoryId,
+							categoryImageUri,
+						});
+					}}
+				/>
 			) : (
 				<View style={styles.imagePlaceholder}>
 					<Ionicons
@@ -111,9 +151,22 @@ export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 			<View style={styles.header}>
 				<View style={styles.headerLeft}>
 					<Text style={styles.partNumber}>{part.partNumber}</Text>
-					{part.gcNumber && (
+					{part.gcNumbers && part.gcNumbers.length > 0 ? (
+						<View style={styles.gcNumbersContainer}>
+							{part.gcNumbers.slice(0, 3).map((gc, index) => (
+								<Text key={index} style={styles.gcNumber}>
+									GC: {gc}
+								</Text>
+							))}
+							{part.gcNumbers.length > 3 && (
+								<Text style={styles.gcNumberMore}>
+									+{part.gcNumbers.length - 3} more
+								</Text>
+							)}
+						</View>
+					) : part.gcNumber ? (
 						<Text style={styles.gcNumber}>GC: {part.gcNumber}</Text>
-					)}
+					) : null}
 				</View>
 				<View style={styles.stockBadge}>
 					<View
@@ -142,13 +195,19 @@ export const PartCard: React.FC<PartCardProps> = ({ part, onPress }) => {
 
 			<View style={styles.footer}>
 				<View style={styles.meta}>
-					<Text style={styles.manufacturer}>{part.manufacturer}</Text>
+					<Text style={styles.manufacturer} numberOfLines={1} ellipsizeMode="tail">
+						{part.manufacturer}
+					</Text>
 					{part.category ? (
-						<Text style={styles.category}>{` • ${part.category}`}</Text>
+						<Text style={styles.category} numberOfLines={1} ellipsizeMode="tail">
+							{` • ${part.category}`}
+						</Text>
 					) : null}
 				</View>
 				{part.price ? (
-					<Text style={styles.price}>£{part.price.toFixed(2)}</Text>
+					<Text style={styles.price} numberOfLines={1}>
+						£{part.price.toFixed(2)}
+					</Text>
 				) : null}
 			</View>
 
@@ -234,9 +293,20 @@ const styles = StyleSheet.create({
 		color: theme.colors.primary,
 		marginBottom: theme.spacing.xs,
 	},
+	gcNumbersContainer: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: theme.spacing.xs,
+		marginTop: theme.spacing.xs,
+	},
 	gcNumber: {
 		...theme.typography.caption,
 		color: theme.colors.textSecondary,
+	},
+	gcNumberMore: {
+		...theme.typography.caption,
+		color: theme.colors.textLight,
+		fontStyle: 'italic',
 	},
 	stockBadge: {
 		flexDirection: 'row',
@@ -282,23 +352,30 @@ const styles = StyleSheet.create({
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		marginBottom: theme.spacing.md,
+		gap: theme.spacing.sm,
 	},
 	meta: {
 		flexDirection: 'row',
 		flex: 1,
+		flexShrink: 1,
+		minWidth: 0, // Allows text to shrink below its content size
 	},
 	manufacturer: {
 		...theme.typography.bodySmall,
 		fontWeight: '600',
 		color: theme.colors.text,
+		flexShrink: 1,
 	},
 	category: {
 		...theme.typography.bodySmall,
 		color: theme.colors.textSecondary,
+		flexShrink: 1,
 	},
 	price: {
 		...theme.typography.h3,
 		color: theme.colors.primary,
+		flexShrink: 0, // Price should not shrink
+		marginLeft: theme.spacing.sm,
 	},
 	buttonRow: {
 		flexDirection: 'row',

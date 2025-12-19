@@ -107,13 +107,18 @@ export interface WooCommerceProduct {
 		src: string;
 		name: string;
 		alt: string;
+		position?: number;
 	}>;
 	attributes: any[];
 	default_attributes: any[];
 	variations: number[];
 	grouped_products: number[];
 	menu_order: number;
-	meta_data: any[];
+	meta_data: Array<{
+		id?: number;
+		key: string;
+		value: string | number | boolean | object | null;
+	}>;
 	_links: any;
 }
 
