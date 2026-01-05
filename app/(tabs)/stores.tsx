@@ -172,10 +172,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    padding: theme.spacing.md,
-    paddingBottom: theme.spacing.xl,
-  },
+	scrollContent: {
+		padding: theme.spacing.md,
+		paddingBottom: theme.spacing.xxl + theme.spacing.lg, // Extra padding for native tabs
+	},
   header: {
     marginBottom: theme.spacing.xl,
     alignItems: 'center',

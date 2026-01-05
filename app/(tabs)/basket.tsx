@@ -391,6 +391,7 @@ const styles = StyleSheet.create({
 		justifyContent: 'center',
 		alignItems: 'center',
 		padding: theme.spacing.xl,
+		paddingBottom: theme.spacing.xxl + theme.spacing.lg, // Extra padding for native tabs
 	},
 	emptyTitle: {
 		...theme.typography.h2,

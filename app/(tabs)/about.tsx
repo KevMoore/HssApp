@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
 	},
 	scrollContent: {
 		padding: theme.spacing.md,
-		paddingBottom: theme.spacing.xl,
+		paddingBottom: theme.spacing.xxl + theme.spacing.lg, // Extra padding for native tabs
 	},
 	header: {
 		marginBottom: theme.spacing.xl,
