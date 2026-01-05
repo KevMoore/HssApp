@@ -227,13 +227,6 @@ function RootLayoutContent() {
 						},
 					}}
 				/>
-				<Stack.Screen
-					name="order/[id]"
-					options={{
-						presentation: 'modal',
-						headerShown: false,
-					}}
-				/>
 			</Stack>
 
 			{/* Notification Prompt */}
