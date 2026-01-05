@@ -7,19 +7,38 @@ import Constants from 'expo-constants';
 
 // WooCommerce API Configuration
 const getWooCommerceConfig = () => {
+	// Base URL can be public (EXPO_PUBLIC_ prefix is fine for non-secrets)
 	const baseUrl =
 		process.env.EXPO_PUBLIC_WOOCOMMERCE_BASE_URL ||
 		Constants.expoConfig?.extra?.woocommerceBaseUrl;
-	const consumerKey =
-		process.env.EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_KEY ||
-		Constants.expoConfig?.extra?.woocommerceConsumerKey;
-	const consumerSecret =
-		process.env.EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_SECRET ||
-		Constants.expoConfig?.extra?.woocommerceConsumerSecret;
+
+	// Consumer key and secret are secrets - must use Constants.expoConfig.extra (populated from app.config.js)
+	// Do NOT use EXPO_PUBLIC_ prefix for secrets as they would be exposed in the client bundle
+	// In Expo, non-EXPO_PUBLIC_ process.env variables are NOT available in client-side code
+	// They must be loaded via app.config.js and accessed through Constants.expoConfig.extra
+	const consumerKey = Constants.expoConfig?.extra?.woocommerceConsumerKey;
+	const consumerSecret = Constants.expoConfig?.extra?.woocommerceConsumerSecret;
+
+	// Debug logging (only in development) - sanitized to not expose secrets
+	if (__DEV__) {
+		console.log('[WooCommerce Config] Status:', {
+			hasBaseUrl: !!baseUrl,
+			hasConsumerKey: !!consumerKey,
+			hasConsumerSecret: !!consumerSecret,
+			hasExpoConfig: !!Constants.expoConfig,
+			hasExtra: !!Constants.expoConfig?.extra,
+			extraKeys: Object.keys(Constants.expoConfig?.extra || {}).filter(
+				(key) => !key.includes('KEY') && !key.includes('SECRET')
+			),
+		});
+	}
 
 	if (!baseUrl || !consumerKey || !consumerSecret) {
 		throw new Error(
-			'WooCommerce API credentials not configured. Please set EXPO_PUBLIC_WOOCOMMERCE_BASE_URL, EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_KEY, and EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_SECRET in your .env file.'
+			'WooCommerce API credentials not configured. Please set:\n' +
+				'- EXPO_PUBLIC_WOOCOMMERCE_BASE_URL in .env file (or via EAS secret)\n' +
+				'- WOOCOMMERCE_CONSUMER_KEY via EAS secret (use: eas secret:create --scope project --name WOOCOMMERCE_CONSUMER_KEY --value your_key)\n' +
+				'- WOOCOMMERCE_CONSUMER_SECRET via EAS secret (use: eas secret:create --scope project --name WOOCOMMERCE_CONSUMER_SECRET --value your_secret)'
 		);
 	}
 
@@ -299,7 +318,8 @@ export async function listProducts(params?: {
 			queryParams.search_fields = params.search_fields.join(',');
 		} else {
 			// Search in all available fields by default
-			queryParams.search_fields = 'name,sku,global_unique_id,description,short_description';
+			queryParams.search_fields =
+				'name,sku,global_unique_id,description,short_description';
 		}
 	}
 	if (params?.category) {

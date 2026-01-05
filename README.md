@@ -113,13 +113,48 @@ The app uses a centralized theme system located in `constants/theme.ts`. Colors 
 
 ### Environment Variables
 
-Create a `.env` file in the root directory with the following WooCommerce API credentials:
+#### Public Variables (can use EXPO_PUBLIC_ prefix)
+
+Create a `.env` file in the root directory with the WooCommerce base URL:
 
 ```
 EXPO_PUBLIC_WOOCOMMERCE_BASE_URL=https://your-store.com
-EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_KEY=your_consumer_key
-EXPO_PUBLIC_WOOCOMMERCE_CONSUMER_SECRET=your_consumer_secret
 ```
+
+#### Secret Variables (use EAS secrets)
+
+**Important**: Consumer key and secret are sensitive credentials and should NOT use the `EXPO_PUBLIC_` prefix as they would be exposed in the client bundle.
+
+For production builds, use EAS secrets to securely inject these values:
+
+```bash
+# Set consumer key as an EAS secret
+eas secret:create --scope project --name WOOCOMMERCE_CONSUMER_KEY --value your_consumer_key
+
+# Set consumer secret as an EAS secret
+eas secret:create --scope project --name WOOCOMMERCE_CONSUMER_SECRET --value your_consumer_secret
+```
+
+These secrets will be automatically injected into `Constants.expoConfig.extra` during the build process via `app.config.js`. They are available at build time but are not exposed in the client bundle in plain text (though note that any values used in client-side code can still be extracted by determined users).
+
+**For local development**, create a `.env` file in the project root with the following (without the `EXPO_PUBLIC_` prefix):
+
+```bash
+# .env (gitignored - do NOT commit this file with secrets)
+EXPO_PUBLIC_WOOCOMMERCE_BASE_URL=https://your-store.com
+WOOCOMMERCE_CONSUMER_KEY=your_consumer_key
+WOOCOMMERCE_CONSUMER_SECRET=your_consumer_secret
+```
+
+The `app.config.js` file will automatically load these from `.env` during local development. The secrets are injected into `Constants.expoConfig.extra` and are accessible in your app code.
+
+Alternatively, you can use `eas env:pull` to sync EAS environment variables locally:
+
+```bash
+eas env:pull --environment development
+```
+
+**Note**: Make sure your `.env` file is listed in `.gitignore` to prevent committing secrets to version control.
 
 These credentials are used to authenticate with the WooCommerce REST API for fetching products and categories.
 
