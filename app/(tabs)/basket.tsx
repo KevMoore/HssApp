@@ -24,6 +24,7 @@ import {
 import {
 	syncBasketToCart,
 	getCheckoutUrl,
+	getCurrentCartToken,
 } from '../../services/woocommerceCartService';
 
 export default function BasketScreen() {
@@ -105,6 +106,13 @@ export default function BasketScreen() {
 				totalPrice: cart.totals.total_price,
 			});
 
+			// Get the cart token after successful sync (token is stored during sync)
+			const cartToken = await getCurrentCartToken();
+			console.log(
+				'[Checkout] Cart token obtained:',
+				cartToken.substring(0, 20) + '...'
+			);
+
 			// Clear local basket after successful sync
 			await clear();
 
@@ -112,7 +120,7 @@ export default function BasketScreen() {
 
 			// Get checkout bridge URL with cart token and open it
 			// The checkout bridge will transfer the cart to web session and redirect to checkout
-			const checkoutUrl = await getCheckoutUrl();
+			const checkoutUrl = await getCheckoutUrl(cartToken);
 			console.log('[Checkout] Opening checkout bridge URL:', checkoutUrl);
 
 			const supported = await Linking.canOpenURL(checkoutUrl);
@@ -259,25 +267,16 @@ export default function BasketScreen() {
 	return (
 		<SafeAreaView style={styles.container} edges={['top']}>
 			<View style={styles.contentWrapper}>
-				<ScrollView
-					style={styles.scrollView}
-					contentContainerStyle={styles.scrollContent}
-					showsVerticalScrollIndicator={false}
-				>
-					<View style={styles.header}>
-						<Text style={styles.title}>Shopping Basket</Text>
-						<Text style={styles.subtitle}>
-							{itemCount} {itemCount === 1 ? 'item' : 'items'}
-						</Text>
-					</View>
+				{/* Sticky Checkout Section at Top */}
+				<SafeAreaView style={styles.stickyHeaderContainer} edges={[]}>
+					<View style={styles.stickyHeader}>
+						<View style={styles.header}>
+							<Text style={styles.title}>Shopping Basket</Text>
+							<Text style={styles.subtitle}>
+								{itemCount} {itemCount === 1 ? 'item' : 'items'}
+							</Text>
+						</View>
 
-					<View style={styles.itemsContainer}>
-						{items.map((item) => renderBasketItem({ item }))}
-					</View>
-				</ScrollView>
-
-				<SafeAreaView style={styles.footerContainer} edges={['bottom']}>
-					<View style={styles.footer}>
 						<View style={styles.summary}>
 							<View style={styles.summaryRow}>
 								<Text style={styles.summaryLabel}>Subtotal</Text>
@@ -328,6 +327,17 @@ export default function BasketScreen() {
 						</Text>
 					</View>
 				</SafeAreaView>
+
+				{/* Scrollable Basket Items */}
+				<ScrollView
+					style={styles.scrollView}
+					contentContainerStyle={styles.scrollContent}
+					showsVerticalScrollIndicator={false}
+				>
+					<View style={styles.itemsContainer}>
+						{items.map((item) => renderBasketItem({ item }))}
+					</View>
+				</ScrollView>
 			</View>
 		</SafeAreaView>
 	);
@@ -352,11 +362,20 @@ const styles = StyleSheet.create({
 		color: theme.colors.textSecondary,
 		marginTop: theme.spacing.md,
 	},
-	header: {
-		padding: theme.spacing.md,
+	stickyHeaderContainer: {
 		backgroundColor: theme.colors.surfaceElevated,
 		borderBottomWidth: 1,
 		borderBottomColor: theme.colors.border,
+		...theme.shadows.lg,
+		zIndex: 10,
+	},
+	stickyHeader: {
+		paddingHorizontal: theme.spacing.md,
+		paddingTop: theme.spacing.sm,
+		paddingBottom: theme.spacing.md,
+	},
+	header: {
+		marginBottom: theme.spacing.sm,
 	},
 	title: {
 		...theme.typography.h1,
@@ -389,7 +408,7 @@ const styles = StyleSheet.create({
 	},
 	scrollContent: {
 		flexGrow: 1,
-		paddingBottom: theme.spacing.md,
+		paddingBottom: theme.spacing.xxl + theme.spacing.lg, // Extra padding for native tabs
 	},
 	itemsContainer: {
 		padding: theme.spacing.md,
@@ -484,17 +503,6 @@ const styles = StyleSheet.create({
 		...theme.typography.bodySmall,
 		color: theme.colors.textSecondary,
 		fontStyle: 'italic',
-	},
-	footerContainer: {
-		backgroundColor: theme.colors.surfaceElevated,
-		borderTopWidth: 1,
-		borderTopColor: theme.colors.border,
-		...theme.shadows.lg,
-	},
-	footer: {
-		paddingHorizontal: theme.spacing.md,
-		paddingTop: theme.spacing.sm,
-		paddingBottom: theme.spacing.md,
 	},
 	summary: {
 		marginBottom: theme.spacing.sm,

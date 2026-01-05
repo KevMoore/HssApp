@@ -6,12 +6,13 @@ import {
 	ActivityIndicator,
 	RefreshControl,
 	TouchableOpacity,
+	Linking,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Part, StockStatusFilter, PriceRangeFilter } from '../types';
+import { Part, PriceRangeFilter } from '../types';
 import { PartCard } from '../components/parts/PartCard';
 import { SearchBar } from '../components/ui/SearchBar';
 import { SearchFilters } from '../components/ui/SearchFilters';
@@ -19,6 +20,9 @@ import { NoResultsModal } from '../components/ui/NoResultsModal';
 import { theme } from '../constants/theme';
 import { searchParts } from '../services/partsService';
 import { saveSearchTerm } from '../services/searchHistoryService';
+
+// Office phone number from about page
+const OFFICE_PHONE = '01202 718660';
 
 export default function SearchScreen() {
 	const params = useLocalSearchParams<{ q?: string; mode?: string }>();
@@ -29,10 +33,12 @@ export default function SearchScreen() {
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showNoResultsModal, setShowNoResultsModal] = useState(false);
-	const [stockStatus, setStockStatus] = useState<StockStatusFilter>('all');
+	const [activeTab, setActiveTab] = useState<'inStock' | 'outOfStock'>(
+		'inStock'
+	);
 	const [priceRange, setPriceRange] = useState<PriceRangeFilter>('all');
 
-	const performSearch = useCallback(async (query: string, currentStockStatus?: StockStatusFilter) => {
+	const performSearch = useCallback(async (query: string) => {
 		if (!query.trim()) {
 			setAllParts([]);
 			setShowNoResultsModal(false);
@@ -43,20 +49,11 @@ export default function SearchScreen() {
 		setError(null);
 
 		try {
-			// Use provided stockStatus or current state
-			const statusToUse = currentStockStatus ?? stockStatus;
-			
-			// Convert stockStatus filter to the old inStockOnly format for API
-			// Only use API filter for 'inStock' to optimize performance
-			const filters: { inStockOnly?: boolean } = {};
-			if (statusToUse === 'inStock') {
-				filters.inStockOnly = true;
-			}
-			// For 'outOfStock' and 'all', we'll filter client-side
-
+			// Fetch all results (both in-stock and out-of-stock)
+			// We'll separate them client-side for the tabs
 			const results = await searchParts({
 				query,
-				filters: filters.inStockOnly ? { inStockOnly: filters.inStockOnly } : {},
+				filters: {},
 			});
 			setAllParts(results);
 			// Show modal if no results found and we have a search query
@@ -72,7 +69,7 @@ export default function SearchScreen() {
 		} finally {
 			setLoading(false);
 		}
-	}, [stockStatus]);
+	}, []);
 
 	useEffect(() => {
 		if (params.q) {
@@ -113,16 +110,27 @@ export default function SearchScreen() {
 		[router]
 	);
 
-	// Apply client-side filters (stock status and price range)
-	const filteredParts = useMemo(() => {
-		let filtered = [...allParts];
+	// Separate parts into in-stock and out-of-stock
+	const { inStockParts, outOfStockParts } = useMemo(() => {
+		const inStock: Part[] = [];
+		const outOfStock: Part[] = [];
 
-		// Apply stock status filter
-		if (stockStatus === 'inStock') {
-			filtered = filtered.filter((part) => part.inStock);
-		} else if (stockStatus === 'outOfStock') {
-			filtered = filtered.filter((part) => !part.inStock);
-		}
+		allParts.forEach((part) => {
+			if (part.inStock) {
+				inStock.push(part);
+			} else {
+				outOfStock.push(part);
+			}
+		});
+
+		return { inStockParts: inStock, outOfStockParts: outOfStock };
+	}, [allParts]);
+
+	// Apply price range filter to the active tab's parts
+	const filteredParts = useMemo(() => {
+		const partsToFilter =
+			activeTab === 'inStock' ? inStockParts : outOfStockParts;
+		let filtered = [...partsToFilter];
 
 		// Apply price range filter
 		if (priceRange !== 'all' && filtered.length > 0) {
@@ -149,16 +157,7 @@ export default function SearchScreen() {
 		}
 
 		return filtered;
-	}, [allParts, stockStatus, priceRange]);
-
-	const handleStockStatusChange = useCallback((status: StockStatusFilter) => {
-		setStockStatus(status);
-		// If changing to 'inStock', re-search with API filter for better performance
-		// Otherwise, client-side filtering will handle it
-		if (status === 'inStock' && searchQuery.trim() && allParts.length > 0) {
-			performSearch(searchQuery.trim(), status);
-		}
-	}, [searchQuery, allParts.length, performSearch]);
+	}, [activeTab, inStockParts, outOfStockParts, priceRange]);
 
 	const handlePriceRangeChange = useCallback((range: PriceRangeFilter) => {
 		setPriceRange(range);
@@ -166,13 +165,12 @@ export default function SearchScreen() {
 	}, []);
 
 	const handleClearFilters = useCallback(() => {
-		setStockStatus('all');
 		setPriceRange('all');
-		// If we had 'inStock' filter active, re-search to get all results
-		if (searchQuery.trim() && allParts.length > 0) {
-			performSearch(searchQuery.trim(), 'all');
-		}
-	}, [searchQuery, allParts.length, performSearch]);
+	}, []);
+
+	const handleCallForStock = useCallback(() => {
+		Linking.openURL(`tel:${OFFICE_PHONE.replace(/\s/g, '')}`);
+	}, []);
 
 	const renderEmptyState = () => {
 		if (loading) {
@@ -234,7 +232,7 @@ export default function SearchScreen() {
 						}}
 						onClear={() => {
 							setSearchQuery('');
-							setParts([]);
+							setAllParts([]);
 							setShowNoResultsModal(false);
 						}}
 						placeholder="Search parts..."
@@ -277,26 +275,85 @@ export default function SearchScreen() {
 			</View>
 
 			{allParts.length > 0 && (
-				<SearchFilters
-					stockStatus={stockStatus}
-					priceRange={priceRange}
-					onStockStatusChange={handleStockStatusChange}
-					onPriceRangeChange={handlePriceRangeChange}
-					onClearFilters={handleClearFilters}
-				/>
+				<>
+					{/* Tabs */}
+					<View style={styles.tabsContainer}>
+						<TouchableOpacity
+							style={[styles.tab, activeTab === 'inStock' && styles.tabActive]}
+							onPress={() => setActiveTab('inStock')}
+							activeOpacity={0.7}
+						>
+							<Text
+								style={[
+									styles.tabText,
+									activeTab === 'inStock' && styles.tabTextActive,
+								]}
+							>
+								In Stock ({inStockParts.length})
+							</Text>
+						</TouchableOpacity>
+						<TouchableOpacity
+							style={[
+								styles.tab,
+								activeTab === 'outOfStock' && styles.tabActive,
+							]}
+							onPress={() => setActiveTab('outOfStock')}
+							activeOpacity={0.7}
+						>
+							<Text
+								style={[
+									styles.tabText,
+									activeTab === 'outOfStock' && styles.tabTextActive,
+								]}
+							>
+								Call for Stock ({outOfStockParts.length})
+							</Text>
+						</TouchableOpacity>
+					</View>
+
+					{/* Call for Stock Button (only shown in out-of-stock tab) */}
+					{activeTab === 'outOfStock' && outOfStockParts.length > 0 && (
+						<View style={styles.callForStockContainer}>
+							<TouchableOpacity
+								style={styles.callForStockButton}
+								onPress={handleCallForStock}
+								activeOpacity={0.7}
+							>
+								<Ionicons
+									name="call"
+									size={20}
+									color={theme.colors.background}
+								/>
+								<Text style={styles.callForStockText}>
+									Call for Stock: {OFFICE_PHONE}
+								</Text>
+							</TouchableOpacity>
+						</View>
+					)}
+
+					{/* Price Range Filter */}
+					<SearchFilters
+						stockStatus="all"
+						priceRange={priceRange}
+						onStockStatusChange={() => {}}
+						onPriceRangeChange={handlePriceRangeChange}
+						onClearFilters={handleClearFilters}
+						hideStockStatus={true}
+					/>
+				</>
 			)}
 
 			{filteredParts.length > 0 ? (
 				<View style={styles.resultsHeader}>
 					<Text style={styles.resultsCount}>
-						{`${filteredParts.length} ${filteredParts.length === 1 ? 'result' : 'results'} found`}
+						{`${filteredParts.length} ${
+							filteredParts.length === 1 ? 'result' : 'results'
+						} found`}
 					</Text>
 				</View>
 			) : allParts.length > 0 ? (
 				<View style={styles.resultsHeader}>
-					<Text style={styles.resultsCount}>
-						No results match your filters
-					</Text>
+					<Text style={styles.resultsCount}>No results match your filters</Text>
 				</View>
 			) : null}
 
@@ -401,5 +458,54 @@ const styles = StyleSheet.create({
 		...theme.typography.body,
 		color: theme.colors.error,
 		textAlign: 'center',
+	},
+	tabsContainer: {
+		flexDirection: 'row',
+		backgroundColor: theme.colors.surfaceElevated,
+		borderBottomWidth: 1,
+		borderBottomColor: theme.colors.border,
+		paddingHorizontal: theme.spacing.md,
+	},
+	tab: {
+		flex: 1,
+		paddingVertical: theme.spacing.md,
+		paddingHorizontal: theme.spacing.sm,
+		borderBottomWidth: 2,
+		borderBottomColor: 'transparent',
+		alignItems: 'center',
+	},
+	tabActive: {
+		borderBottomColor: theme.colors.primary,
+	},
+	tabText: {
+		...theme.typography.body,
+		color: theme.colors.textSecondary,
+		fontWeight: '500',
+	},
+	tabTextActive: {
+		color: theme.colors.primary,
+		fontWeight: '600',
+	},
+	callForStockContainer: {
+		paddingHorizontal: theme.spacing.md,
+		paddingVertical: theme.spacing.sm,
+		backgroundColor: theme.colors.surface,
+		borderBottomWidth: 1,
+		borderBottomColor: theme.colors.border,
+	},
+	callForStockButton: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: theme.colors.primary,
+		paddingVertical: theme.spacing.md,
+		paddingHorizontal: theme.spacing.lg,
+		borderRadius: theme.borderRadius.md,
+		gap: theme.spacing.sm,
+	},
+	callForStockText: {
+		...theme.typography.body,
+		color: theme.colors.background,
+		fontWeight: '600',
 	},
 });

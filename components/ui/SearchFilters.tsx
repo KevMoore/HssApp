@@ -18,6 +18,7 @@ interface SearchFiltersProps {
 	onStockStatusChange: (status: StockStatusFilter) => void;
 	onPriceRangeChange: (range: PriceRangeFilter) => void;
 	onClearFilters: () => void;
+	hideStockStatus?: boolean;
 }
 
 const STOCK_STATUS_OPTIONS: { value: StockStatusFilter; label: string }[] = [
@@ -42,10 +43,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 	onStockStatusChange,
 	onPriceRangeChange,
 	onClearFilters,
+	hideStockStatus = false,
 }) => {
 	const [isModalVisible, setIsModalVisible] = useState(false);
 	const insets = useSafeAreaInsets();
-	const hasActiveFilters = stockStatus !== 'all' || priceRange !== 'all';
+	const hasActiveFilters = (!hideStockStatus && stockStatus !== 'all') || priceRange !== 'all';
 
 	const handleClearFilters = () => {
 		onStockStatusChange('all');
@@ -77,7 +79,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 					{hasActiveFilters && (
 						<View style={styles.badge}>
 							<Text style={styles.badgeText}>
-								{(stockStatus !== 'all' ? 1 : 0) + (priceRange !== 'all' ? 1 : 0)}
+								{(!hideStockStatus && stockStatus !== 'all' ? 1 : 0) + (priceRange !== 'all' ? 1 : 0)}
 							</Text>
 						</View>
 					)}
@@ -103,7 +105,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 			>
 				<View style={styles.modalOverlay}>
 					<SafeAreaView 
-						style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, theme.spacing.lg) }]} 
+						style={styles.modalContent} 
 						edges={['bottom']}
 					>
 						<View style={styles.modalHeader}>
@@ -120,40 +122,49 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
 							</TouchableOpacity>
 						</View>
 
-						<ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+						<ScrollView 
+							style={styles.modalBody} 
+							contentContainerStyle={[
+								styles.modalBodyContent,
+								{ paddingBottom: theme.spacing.xl }
+							]}
+							showsVerticalScrollIndicator={false}
+						>
 							{/* Stock Status Filter */}
-							<View style={styles.filterSection}>
-								<Text style={styles.filterSectionTitle}>Stock Status</Text>
-								<View style={styles.optionsContainer}>
-									{STOCK_STATUS_OPTIONS.map((option) => (
-										<TouchableOpacity
-											key={option.value}
-											style={[
-												styles.optionButton,
-												stockStatus === option.value && styles.optionButtonActive,
-											]}
-											onPress={() => onStockStatusChange(option.value)}
-											activeOpacity={0.7}
-										>
-											<Text
+							{!hideStockStatus && (
+								<View style={styles.filterSection}>
+									<Text style={styles.filterSectionTitle}>Stock Status</Text>
+									<View style={styles.optionsContainer}>
+										{STOCK_STATUS_OPTIONS.map((option) => (
+											<TouchableOpacity
+												key={option.value}
 												style={[
-													styles.optionText,
-													stockStatus === option.value && styles.optionTextActive,
+													styles.optionButton,
+													stockStatus === option.value && styles.optionButtonActive,
 												]}
+												onPress={() => onStockStatusChange(option.value)}
+												activeOpacity={0.7}
 											>
-												{option.label}
-											</Text>
-											{stockStatus === option.value && (
-												<Ionicons
-													name="checkmark"
-													size={18}
-													color={theme.colors.primary}
-												/>
-											)}
-										</TouchableOpacity>
-									))}
+												<Text
+													style={[
+														styles.optionText,
+														stockStatus === option.value && styles.optionTextActive,
+													]}
+												>
+													{option.label}
+												</Text>
+												{stockStatus === option.value && (
+													<Ionicons
+														name="checkmark"
+														size={18}
+														color={theme.colors.primary}
+													/>
+												)}
+											</TouchableOpacity>
+										))}
+									</View>
 								</View>
-							</View>
+							)}
 
 							{/* Price Range Filter */}
 							<View style={styles.filterSection}>
@@ -283,6 +294,7 @@ const styles = StyleSheet.create({
 		justifyContent: 'flex-end',
 	},
 	modalContent: {
+		flex: 1,
 		backgroundColor: theme.colors.background,
 		borderTopLeftRadius: theme.borderRadius.xl,
 		borderTopRightRadius: theme.borderRadius.xl,
@@ -303,6 +315,8 @@ const styles = StyleSheet.create({
 	},
 	modalBody: {
 		flex: 1,
+	},
+	modalBodyContent: {
 		padding: theme.spacing.md,
 	},
 	filterSection: {

@@ -26,9 +26,11 @@ export default function HomeScreen() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchMode, setSearchMode] = useState<
 		'appliance' | 'part' | 'keyword'
-	>('keyword');
+	>('part');
 	const [isApplianceModalVisible, setIsApplianceModalVisible] = useState(false);
-	const [popularManufacturers, setPopularManufacturers] = useState<string[]>([]);
+	const [popularManufacturers, setPopularManufacturers] = useState<string[]>(
+		[]
+	);
 	const [loadingManufacturers, setLoadingManufacturers] = useState(true);
 	const searchBarRef = useRef<SearchBarRef>(null);
 
@@ -118,32 +120,6 @@ export default function HomeScreen() {
 							<TouchableOpacity
 								style={[
 									styles.modeButton,
-									searchMode === 'appliance' && styles.modeButtonActive,
-								]}
-								onPress={() => handleModeChange('appliance')}
-							>
-								<Ionicons
-									name="home"
-									size={24}
-									color={
-										searchMode === 'appliance'
-											? '#ffffff'
-											: theme.colors.textSecondary
-									}
-								/>
-								<Text
-									style={[
-										styles.modeButtonText,
-										searchMode === 'appliance' && styles.modeButtonTextActive,
-									]}
-								>
-									Appliance
-								</Text>
-							</TouchableOpacity>
-
-							<TouchableOpacity
-								style={[
-									styles.modeButton,
 									searchMode === 'part' && styles.modeButtonActive,
 								]}
 								onPress={() => handleModeChange('part')}
@@ -190,6 +166,32 @@ export default function HomeScreen() {
 									]}
 								>
 									Keyword
+								</Text>
+							</TouchableOpacity>
+
+							<TouchableOpacity
+								style={[
+									styles.modeButton,
+									searchMode === 'appliance' && styles.modeButtonActive,
+								]}
+								onPress={() => handleModeChange('appliance')}
+							>
+								<Ionicons
+									name="home"
+									size={24}
+									color={
+										searchMode === 'appliance'
+											? '#ffffff'
+											: theme.colors.textSecondary
+									}
+								/>
+								<Text
+									style={[
+										styles.modeButtonText,
+										searchMode === 'appliance' && styles.modeButtonTextActive,
+									]}
+								>
+									Appliance
 								</Text>
 							</TouchableOpacity>
 						</View>
