@@ -367,8 +367,8 @@ export async function createOrder(
 
 		// Build order request
 		const orderRequest: CreateOrderRequest = {
-			payment_method: 'stripe',
-			payment_method_title: 'Stripe',
+			payment_method: 'bacs',
+			payment_method_title: 'Direct Bank Transfer',
 			set_paid: false, // Order starts as pending payment
 			customer_id: customerId, // Always associate with customer
 			line_items: lineItems,

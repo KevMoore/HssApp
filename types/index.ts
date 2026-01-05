@@ -19,10 +19,23 @@ export interface Part {
 	compatibleWith?: string[]; // List of appliance models this part fits
 }
 
+export type StockStatusFilter = 'all' | 'inStock' | 'outOfStock';
+
+export type PriceRangeFilter =
+	| 'all'
+	| 'under10'
+	| '10to25'
+	| '25to50'
+	| '50to100'
+	| '100to250'
+	| 'over250';
+
 export interface SearchFilters {
 	manufacturer?: string;
 	category?: string;
-	inStockOnly?: boolean;
+	inStockOnly?: boolean; // Deprecated - use stockStatus instead
+	stockStatus?: StockStatusFilter;
+	priceRange?: PriceRangeFilter;
 }
 
 export interface SearchParams {

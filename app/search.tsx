@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
 	View,
 	Text,
@@ -11,9 +11,10 @@ import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Part } from '../types';
+import { Part, StockStatusFilter, PriceRangeFilter } from '../types';
 import { PartCard } from '../components/parts/PartCard';
 import { SearchBar } from '../components/ui/SearchBar';
+import { SearchFilters } from '../components/ui/SearchFilters';
 import { NoResultsModal } from '../components/ui/NoResultsModal';
 import { theme } from '../constants/theme';
 import { searchParts } from '../services/partsService';
@@ -23,15 +24,17 @@ export default function SearchScreen() {
 	const params = useLocalSearchParams<{ q?: string; mode?: string }>();
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState(params.q || '');
-	const [parts, setParts] = useState<Part[]>([]);
+	const [allParts, setAllParts] = useState<Part[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showNoResultsModal, setShowNoResultsModal] = useState(false);
+	const [stockStatus, setStockStatus] = useState<StockStatusFilter>('all');
+	const [priceRange, setPriceRange] = useState<PriceRangeFilter>('all');
 
-	const performSearch = useCallback(async (query: string) => {
+	const performSearch = useCallback(async (query: string, currentStockStatus?: StockStatusFilter) => {
 		if (!query.trim()) {
-			setParts([]);
+			setAllParts([]);
 			setShowNoResultsModal(false);
 			return;
 		}
@@ -40,11 +43,22 @@ export default function SearchScreen() {
 		setError(null);
 
 		try {
+			// Use provided stockStatus or current state
+			const statusToUse = currentStockStatus ?? stockStatus;
+			
+			// Convert stockStatus filter to the old inStockOnly format for API
+			// Only use API filter for 'inStock' to optimize performance
+			const filters: { inStockOnly?: boolean } = {};
+			if (statusToUse === 'inStock') {
+				filters.inStockOnly = true;
+			}
+			// For 'outOfStock' and 'all', we'll filter client-side
+
 			const results = await searchParts({
 				query,
-				filters: {},
+				filters: filters.inStockOnly ? { inStockOnly: filters.inStockOnly } : {},
 			});
-			setParts(results);
+			setAllParts(results);
 			// Show modal if no results found and we have a search query
 			if (results.length === 0 && query.trim()) {
 				setShowNoResultsModal(true);
@@ -58,7 +72,7 @@ export default function SearchScreen() {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [stockStatus]);
 
 	useEffect(() => {
 		if (params.q) {
@@ -98,6 +112,67 @@ export default function SearchScreen() {
 		},
 		[router]
 	);
+
+	// Apply client-side filters (stock status and price range)
+	const filteredParts = useMemo(() => {
+		let filtered = [...allParts];
+
+		// Apply stock status filter
+		if (stockStatus === 'inStock') {
+			filtered = filtered.filter((part) => part.inStock);
+		} else if (stockStatus === 'outOfStock') {
+			filtered = filtered.filter((part) => !part.inStock);
+		}
+
+		// Apply price range filter
+		if (priceRange !== 'all' && filtered.length > 0) {
+			filtered = filtered.filter((part) => {
+				if (!part.price) return false;
+
+				switch (priceRange) {
+					case 'under10':
+						return part.price < 10;
+					case '10to25':
+						return part.price >= 10 && part.price < 25;
+					case '25to50':
+						return part.price >= 25 && part.price < 50;
+					case '50to100':
+						return part.price >= 50 && part.price < 100;
+					case '100to250':
+						return part.price >= 100 && part.price < 250;
+					case 'over250':
+						return part.price >= 250;
+					default:
+						return true;
+				}
+			});
+		}
+
+		return filtered;
+	}, [allParts, stockStatus, priceRange]);
+
+	const handleStockStatusChange = useCallback((status: StockStatusFilter) => {
+		setStockStatus(status);
+		// If changing to 'inStock', re-search with API filter for better performance
+		// Otherwise, client-side filtering will handle it
+		if (status === 'inStock' && searchQuery.trim() && allParts.length > 0) {
+			performSearch(searchQuery.trim(), status);
+		}
+	}, [searchQuery, allParts.length, performSearch]);
+
+	const handlePriceRangeChange = useCallback((range: PriceRangeFilter) => {
+		setPriceRange(range);
+		// Price filtering is always client-side, no need to re-search
+	}, []);
+
+	const handleClearFilters = useCallback(() => {
+		setStockStatus('all');
+		setPriceRange('all');
+		// If we had 'inStock' filter active, re-search to get all results
+		if (searchQuery.trim() && allParts.length > 0) {
+			performSearch(searchQuery.trim(), 'all');
+		}
+	}, [searchQuery, allParts.length, performSearch]);
 
 	const renderEmptyState = () => {
 		if (loading) {
@@ -201,17 +276,33 @@ export default function SearchScreen() {
 				</View>
 			</View>
 
-			{parts.length > 0 ? (
+			{allParts.length > 0 && (
+				<SearchFilters
+					stockStatus={stockStatus}
+					priceRange={priceRange}
+					onStockStatusChange={handleStockStatusChange}
+					onPriceRangeChange={handlePriceRangeChange}
+					onClearFilters={handleClearFilters}
+				/>
+			)}
+
+			{filteredParts.length > 0 ? (
 				<View style={styles.resultsHeader}>
 					<Text style={styles.resultsCount}>
-						{`${parts.length} ${parts.length === 1 ? 'result' : 'results'} found`}
+						{`${filteredParts.length} ${filteredParts.length === 1 ? 'result' : 'results'} found`}
+					</Text>
+				</View>
+			) : allParts.length > 0 ? (
+				<View style={styles.resultsHeader}>
+					<Text style={styles.resultsCount}>
+						No results match your filters
 					</Text>
 				</View>
 			) : null}
 
 			<View style={styles.listContainer}>
 				<FlashList<Part>
-					data={parts}
+					data={filteredParts}
 					keyExtractor={(item) => item.id}
 					renderItem={({ item }) => (
 						<PartCard part={item} onPress={() => handlePartPress(item)} />
