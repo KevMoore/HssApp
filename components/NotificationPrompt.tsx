@@ -10,6 +10,7 @@ import {
 	Platform,
 	StyleSheet,
 	Text,
+	TouchableOpacity,
 	TouchableWithoutFeedback,
 	View,
 } from 'react-native';
@@ -145,21 +146,15 @@ export const NotificationPrompt: React.FC<NotificationPromptProps> = ({
 
 								{/* Navigation - Fixed at bottom */}
 								<View style={styles.navigation}>
-									<View style={styles.navigationButtons}>
-										<Button
-											title="Maybe Later"
-											onPress={handleDismiss}
-											variant="outline"
-											style={styles.navButton}
-										/>
-
-										<Button
-											title="Enable Notifications"
-											onPress={handleEnableNotifications}
-											variant="primary"
-											style={styles.navButton}
-										/>
-									</View>
+									<TouchableOpacity onPress={handleDismiss} activeOpacity={0.7}>
+										<Text style={styles.maybeLaterText}>Maybe Later</Text>
+									</TouchableOpacity>
+									<Button
+										title="Enable Notifications"
+										onPress={handleEnableNotifications}
+										variant="primary"
+										style={styles.enableButton}
+									/>
 								</View>
 							</SafeAreaView>
 						</View>
@@ -267,13 +262,16 @@ const styles = StyleSheet.create({
 		borderTopLeftRadius: 20,
 		borderTopRightRadius: 20,
 	},
-	navigationButtons: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		gap: 12,
+	maybeLaterText: {
+		color: '#FFFFFF',
+		fontSize: 14,
+		textAlign: 'center',
+		marginBottom: 12,
+		opacity: 0.8,
+		textDecorationLine: 'underline',
 	},
-	navButton: {
-		flex: 1,
+	enableButton: {
+		width: '100%',
 	},
 });
 

@@ -3,8 +3,10 @@ import {
 	Icon,
 	Label,
 	Badge,
+	VectorIcon,
 } from 'expo-router/unstable-native-tabs';
 import { Platform, DynamicColorIOS } from 'react-native';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { theme } from '../../constants/theme';
 import { useBasketStore } from '../../stores/basketStore';
 import { useEffect } from 'react';
@@ -32,53 +34,92 @@ export default function TabsLayout() {
 
 	return (
 		<NativeTabs
-			backgroundColor={theme.colors.primary}
+			backgroundColor={
+				Platform.OS === 'android' ? '#ffffff' : theme.colors.primary
+			} // White on Android, blue on iOS
 			iconColor={{
-				default: '#ffffff80', // 50% opacity white for unselected
-				selected: theme.colors.primaryDark, // Dark blue from branding for selected
+				default: Platform.OS === 'android' ? '#000000' : '#ffffff80', // Black for non-active on Android (white bg), semi-transparent white on iOS
+				selected:
+					Platform.OS === 'android' ? '#ffffff' : theme.colors.primaryDark, // White for active on Android, dark blue on iOS
 			}}
 			badgeBackgroundColor={theme.colors.error}
 			badgeTextColor="#ffffff"
 			blurEffect="systemChromeMaterialDark"
 			labelStyle={{
 				default: {
-					color: 'black',
+					color: Platform.OS === 'android' ? '#000000' : 'black', // Black for non-active on Android (white bg), black on iOS
 					fontSize: 10,
 					fontWeight: '500',
 				},
 				selected: {
-					color: theme.colors.primaryDark,
+					color:
+						Platform.OS === 'android'
+							? theme.colors.primary
+							: theme.colors.primaryDark, // Blue for active on Android (white bg), dark blue on iOS
 					fontSize: 10,
 					fontWeight: '700',
 				},
 			}}
-			indicatorColor={theme.colors.primaryLight}
+			indicatorColor={
+				Platform.OS === 'android'
+					? theme.colors.primary
+					: theme.colors.primaryLight
+			} // Blue indicator on Android (white bg), light blue on iOS
 		>
 			<NativeTabs.Trigger name="index">
-				<Icon sf="magnifyingglass" drawable="ic_search" />
+				{Platform.select({
+					ios: <Icon sf="magnifyingglass" />,
+					android: (
+						<Icon src={<VectorIcon family={MaterialIcons} name="search" />} />
+					),
+				})}
 				<Label>Search</Label>
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="basket">
 				<Label>Basket</Label>
-				<Icon sf="cart" drawable="ic_basket" />
+				{Platform.select({
+					ios: <Icon sf="cart" />,
+					android: (
+						<Icon
+							src={<VectorIcon family={MaterialIcons} name="shopping-cart" />}
+						/>
+					),
+				})}
 				{itemCount > 0 && (
 					<Badge>{itemCount > 99 ? '99+' : itemCount.toString()}</Badge>
 				)}
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="stores">
-				<Icon sf="map" drawable="ic_map" />
+				{Platform.select({
+					ios: <Icon sf="map" />,
+					android: (
+						<Icon src={<VectorIcon family={MaterialIcons} name="place" />} />
+					),
+				})}
 				<Label>Stores</Label>
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="account">
-				<Icon sf="person.circle" drawable="ic_account" />
+				{Platform.select({
+					ios: <Icon sf="person.circle" />,
+					android: (
+						<Icon
+							src={<VectorIcon family={MaterialIcons} name="account-circle" />}
+						/>
+					),
+				})}
 				<Label>Account</Label>
 			</NativeTabs.Trigger>
 
 			<NativeTabs.Trigger name="about">
-				<Icon sf="info.circle" drawable="ic_info" />
+				{Platform.select({
+					ios: <Icon sf="info.circle" />,
+					android: (
+						<Icon src={<VectorIcon family={MaterialIcons} name="info" />} />
+					),
+				})}
 				<Label>About</Label>
 			</NativeTabs.Trigger>
 		</NativeTabs>
